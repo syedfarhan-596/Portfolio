@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Syed Farhan — Resume</title>
+<style>
+  :root {
+    --ink: #16181f;
+    --dim: #4a4f5c;
+    --accent: #4f3dc4;
+    --line: #d9dbe3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 210mm; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--ink);
+    font-size: 9.6pt;
+    line-height: 1.45;
+    padding: 11mm 13mm;
+  }
+  a { color: var(--accent); text-decoration: none; }
+
+  /* Header */
+  .head { text-align: center; padding-bottom: 4mm; border-bottom: 2px solid var(--accent); }
+  .head h1 { font-size: 21pt; letter-spacing: 0.02em; }
+  .head .role { font-size: 11pt; color: var(--accent); font-weight: 600; margin-top: 1mm; }
+  .head .contact { margin-top: 1.6mm; color: var(--dim); font-size: 8.8pt; }
+  .head .contact span + span::before { content: '  •  '; color: var(--line); }
+
+  /* Sections */
+  section { margin-top: 4.2mm; }
+  h2 {
+    font-size: 10.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--accent);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 1mm;
+    margin-bottom: 2.2mm;
+  }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .row h3 { font-size: 10.3pt; }
+  .row .where { color: var(--dim); font-size: 8.8pt; white-space: nowrap; }
+  .sub { color: var(--accent); font-weight: 600; font-size: 9.4pt; }
+  .entry { margin-bottom: 3mm; }
+  .entry:last-child { margin-bottom: 0; }
+  ul { margin: 1.2mm 0 0 4.5mm; }
+  li { margin-bottom: 0.8mm; color: var(--dim); }
+  li b, p b { color: var(--ink); font-weight: 600; }
+  .proj-head { font-size: 9.8pt; }
+  .proj-head .tech { color: var(--dim); font-weight: 400; font-size: 8.6pt; }
+  .skills-grid { display: grid; grid-template-columns: 32mm 1fr; row-gap: 1.2mm; }
+  .skills-grid dt { font-weight: 600; }
+  .skills-grid dd { color: var(--dim); }
+</style>
+</head>
+<body>
+
+<header class="head">
+  <h1>Syed Farhan</h1>
+  <div class="role">Software Development Engineer</div>
+  <div class="contact">
+    <span>syedfarhan596@gmail.com</span><span>Hyderabad, India</span><span>linkedin.com/in/syedfarhan596</span><span>github.com/syedfarhan-596</span>
+  </div>
+</header>
+
+<section>
+  <h2>Experience</h2>
+  <div class="entry">
+    <div class="row">
+      <h3>Software Development Engineer · <span class="sub">FreshBus</span></h3>
+      <span class="where">Sep 2024 — Present · Hyderabad</span>
+    </div>
+    <ul>
+      <li>Build and maintain the customer-facing <b>bus booking platform</b> — search, seat selection, checkout and booking management flows used by travelers daily.</li>
+      <li>Develop <b>internal operations dashboards</b> for routes, fleet and booking administration, cutting manual ops effort across teams.</li>
+      <li>Design and ship <b>backend REST APIs</b> and third-party integrations with Node.js and TypeScript, focusing on reliability and clean contracts.</li>
+      <li>Own <b>deployments and cloud infrastructure on AWS</b>, including serverless services, CI-driven releases and environment management.</li>
+    </ul>
+  </div>
+  <div class="entry">
+    <div class="row">
+      <h3>MERN Stack Intern · <span class="sub">SyllogisticsAI</span></h3>
+      <span class="where">Nov 2023 — May 2024 · Hyderabad</span>
+    </div>
+    <ul>
+      <li>Developed full-stack applications with <b>MongoDB, Express, React and Node.js</b>, contributing to scalable, production web products.</li>
+      <li>Implemented <b>RESTful APIs</b> and integrated third-party services, strengthening backend and API-integration skills.</li>
+      <li>Collaborated in a team following engineering best practices — version control, code reviews and sprint planning.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Projects</h2>
+  <div class="entry">
+    <div class="proj-head"><b>SRYTAL Resource Management</b> — <a href="https://srytal-client.vercel.app">srytal-client.vercel.app</a> <span class="tech">· React, TypeScript, Node.js, Vercel</span></div>
+    <ul>
+      <li>Built a resource management platform — employee onboarding, resource allocation and tracking workflows — with a type-safe React frontend.</li>
+    </ul>
+  </div>
+  <div class="entry">
+    <div class="proj-head"><b>Code For Digital India</b> — <a href="https://codefordigitalindia-syed.netlify.app">codefordigitalindia-syed.netlify.app</a> <span class="tech">· MERN, AWS S3, Mantine</span></div>
+    <ul>
+      <li>Internship management platform with user/admin dashboards, resume uploads to AWS S3, email-verified onboarding, task assignment and status tracking.</li>
+    </ul>
+  </div>
+  <div class="entry">
+    <div class="proj-head"><b>JobHunt</b> <span class="tech">· React, Node.js, Express, MongoDB, JWT</span></div>
+    <ul>
+      <li>Job portal with job/company browsing, filtering, pagination, application tracking and JWT authentication behind a Material UI interface.</li>
+    </ul>
+  </div>
+  <div class="entry">
+    <div class="proj-head"><b>ASK-PDF</b> <span class="tech">· Python, LangChain, LLMs</span></div>
+    <ul>
+      <li>AI document assistant — upload any PDF and ask questions in natural language to get instant, context-aware answers.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Skills</h2>
+  <dl class="skills-grid">
+    <dt>Languages</dt><dd>JavaScript, TypeScript, Python, SQL, HTML, CSS</dd>
+    <dt>Frontend</dt><dd>React, Next.js, Redux/Recoil, Tailwind CSS, Material UI, Mantine, React Hook Form, Zod</dd>
+    <dt>Backend</dt><dd>Node.js, Express, NestJS, Django, REST APIs, WebSockets, JWT, Mongoose</dd>
+    <dt>Cloud &amp; Data</dt><dd>AWS (S3, Lambda), Serverless, MongoDB, Vercel, Netlify, Render</dd>
+    <dt>Tools</dt><dd>Git, GitHub, VS Code, Postman</dd>
+  </dl>
+</section>
+
+<section>
+  <h2>Education</h2>
+  <div class="entry">
+    <div class="row">
+      <h3>B.E. in Information Technology · <span class="sub">Lords Institute of Engineering and Technology</span></h3>
+      <span class="where">Jun 2024 · Hyderabad</span>
+    </div>
+  </div>
+  <div class="entry">
+    <div class="row">
+      <h3>Diploma in Computer Science · <span class="sub">TKR College of Engineering and Technology</span></h3>
+      <span class="where">Aug 2021 · Hyderabad</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
