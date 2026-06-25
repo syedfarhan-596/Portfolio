@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">PaisaTrack</string>
+    <string name="reminder_channel_name">Daily Reminders</string>
+    <string name="reminder_channel_desc">Reminds you every night to log your expenses</string>
+    <string name="txn_channel_name">Transaction Alerts</string>
+    <string name="txn_channel_desc">Notifies when a new transaction is detected from SMS</string>
+</resources>

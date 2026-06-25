@@ -1,0 +1,85 @@
+# PaisaTrack — Personal Expense & Lending Tracker (Android)
+
+A fully **offline**, on-device expense tracker built for the way you actually spend:
+multiple bank accounts + cash + a credit card, money lent to and borrowed from friends,
+expenses split with people from your contacts, and automatic capture of UPI / bank
+transactions from your SMS alerts.
+
+> **Download the ready-to-install app:** [`PaisaTrack-v1.0.apk`](./PaisaTrack-v1.0.apk)
+
+---
+
+## ⬇️ Install on your Android phone
+
+1. Copy **`PaisaTrack-v1.0.apk`** to your phone (or download it from GitHub on the phone).
+2. Tap the file. Android will ask to allow installing from this source — enable
+   **"Allow from this source"** (Settings → Apps → Special access → Install unknown apps).
+3. Install and open **PaisaTrack**.
+4. On first launch, grant the permissions it asks for (all optional, see below).
+
+> Minimum Android version: **8.0 (Oreo)**. The app is self-signed for personal sideloading.
+
+---
+
+## ✨ Features
+
+- **Multiple accounts** — comes pre-seeded with 3 banks, Cash, and an SBI PhonePe
+  credit card. Add/edit/delete any account, pick colors & icons, set opening balances.
+- **Overall balance including cash** — the home screen shows your available balance
+  (cash + banks), credit-card outstanding, and net worth at a glance.
+- **Automatic UPI / bank tracking from SMS** — the app reads your bank/UPI **SMS alerts**
+  and turns them into transactions you can confirm & categorize. (Android has no public
+  "UPI API"; SMS parsing is how this works reliably and locally.)
+  - Auto-captures new alerts in the background (optional).
+  - "Scan SMS inbox now" in Settings backfills past transactions.
+- **Add more detail to any transaction** — notes, merchant, category, account, and a
+  **person** attached from your contacts.
+- **Manual transactions** — add expense / income / transfer between accounts anytime.
+- **Lending & borrowing** — track who owes you and whom you owe, with partial payments,
+  settle button, and a **"pay after salary"** flag.
+- **Split with friends** — while adding an expense, tick *"Someone owes me part of this"*,
+  attach a contact, and it creates a linked lending entry automatically.
+- **Reports** — month-by-month income vs expense, spending by category, spending by account.
+- **Daily reminder** — a notification every night (default **11:00 PM**, configurable) to
+  log your expenses.
+- **Beautiful Material 3 UI** — light & dark themes, smooth Compose UI.
+- **100% local** — all data stays in the app's local database. Nothing is uploaded anywhere.
+
+---
+
+## 🔐 Permissions (all optional)
+
+| Permission | Why |
+|---|---|
+| SMS (read/receive) | Auto-detect UPI / bank transactions from alert messages |
+| Contacts | Attach a friend to an expense or a lending entry |
+| Notifications | Daily reminder + "new transaction detected" alerts |
+
+The app works fully without any of them — you can just add transactions manually.
+
+---
+
+## 🛠 Building from source
+
+Requirements: JDK 17+, Android SDK (platform 34, build-tools 34.0.0).
+
+```bash
+cd expense-tracker
+# point the build at your SDK:
+echo "sdk.dir=/path/to/Android/sdk" > local.properties
+
+# debug build:
+./gradlew assembleDebug      # -> app/build/outputs/apk/debug/app-debug.apk
+
+# release build (signed with the included keystore):
+./gradlew assembleRelease    # -> app/build/outputs/apk/release/app-release.apk
+```
+
+The release keystore (`app/paisatrack-release.keystore`) is included for convenience so you
+can rebuild and reinstall over the same app. Keystore/key password: `paisatrack123`.
+(For a personal sideloaded app this is fine; change it if you publish anywhere.)
+
+## Tech stack
+
+Kotlin · Jetpack Compose (Material 3) · Room · WorkManager · Navigation Compose ·
+single-module MVVM, no network code.
