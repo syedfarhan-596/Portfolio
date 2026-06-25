@@ -36,9 +36,10 @@ fun TransactionRow(
     icon: ImageVector,
     color: Color,
     dateText: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    SectionCard(modifier = Modifier.clickable { onClick() }) {
+    SectionCard(modifier = modifier.clickable { onClick() }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(icon = icon, tint = color)
             Spacer(Modifier.width(12.dp))

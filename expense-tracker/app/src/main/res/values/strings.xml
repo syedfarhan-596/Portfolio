@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">PaisaTrack</string>
+    <string name="app_name">Farhan\'s Wallet</string>
     <string name="reminder_channel_name">Daily Reminders</string>
     <string name="reminder_channel_desc">Reminds you every night to log your expenses</string>
     <string name="txn_channel_name">Transaction Alerts</string>

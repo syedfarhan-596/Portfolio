@@ -17,4 +17,7 @@ class Converters {
 
     @TypeConverter fun toDebtDirection(v: String) = DebtDirection.valueOf(v)
     @TypeConverter fun fromDebtDirection(v: DebtDirection) = v.name
+
+    @TypeConverter fun toInvestmentType(v: String) = InvestmentType.valueOf(v)
+    @TypeConverter fun fromInvestmentType(v: InvestmentType) = v.name
 }

@@ -1,5 +1,11 @@
 package com.farhan.paisatrack.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,23 +16,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.farhan.paisatrack.data.AccountType
 import com.farhan.paisatrack.data.TxnType
 import com.farhan.paisatrack.ui.MainViewModel
 import com.farhan.paisatrack.ui.components.IconBadge
@@ -49,13 +56,16 @@ import com.farhan.paisatrack.ui.theme.VioletDark
 import com.farhan.paisatrack.util.Format
 import com.farhan.paisatrack.util.IconMap
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
     vm: MainViewModel,
     onAddTxn: () -> Unit,
     onOpenTxn: (Long) -> Unit,
     onSeeAllTxns: () -> Unit,
-    onSeePeople: () -> Unit
+    onSeePeople: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onPayCard: (Long) -> Unit
 ) {
     val dash by vm.dashboard.collectAsStateWithLifecycle()
     val txns by vm.confirmedTxns.collectAsStateWithLifecycle()
@@ -72,12 +82,19 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Text(
-                "Hello 👋",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text("Your money at a glance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Hello, Farhan 👋",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text("Your money at a glance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                }
+            }
         }
 
         item { NetWorthCard(dash) }
@@ -128,6 +145,7 @@ fun DashboardScreen(
             }
             items(pending, key = { "p${it.id}" }) { t ->
                 PendingTxnCard(
+                    modifier = Modifier.animateItemPlacement(),
                     title = if (t.merchant.isNotBlank()) t.merchant else "Unknown",
                     subtitle = "${Format.dateTime(t.dateTime)}  ·  tap to categorize",
                     amount = t.amount,
@@ -143,11 +161,14 @@ fun DashboardScreen(
         }
         items(dash.balances, key = { "acc${it.account.id}" }) { ab ->
             AccountRow(
+                modifier = Modifier.animateItemPlacement(),
+                accountId = ab.account.id,
                 name = ab.account.name,
                 icon = IconMap.icon(ab.account.icon),
                 color = IconMap.parseColor(ab.account.colorHex),
                 balance = ab.balance,
-                isCredit = ab.account.type.name == "CREDIT_CARD"
+                isCredit = ab.account.type == AccountType.CREDIT_CARD,
+                onPayCard = onPayCard
             )
         }
 
@@ -157,17 +178,20 @@ fun DashboardScreen(
         if (txns.isEmpty()) {
             item {
                 SectionCard {
-                    Text("No transactions yet. Tap + to add your first one, or scan your SMS inbox in Settings.",
+                    Text(
+                        "No transactions yet. Tap + to add your first one, or scan your SMS inbox in Settings.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         } else {
             items(txns.take(6), key = { "t${it.id}" }) { t ->
                 val cat = t.categoryId?.let { catById[it] }
                 TransactionRow(
+                    modifier = Modifier.animateItemPlacement(),
                     title = when {
-                        t.contactName != null -> t.contactName
+                        t.contactName != null -> t.contactName!!
                         t.merchant.isNotBlank() -> t.merchant
                         cat != null -> cat.name
                         else -> t.type.name.lowercase().replaceFirstChar { it.uppercase() }
@@ -191,6 +215,11 @@ fun DashboardScreen(
 
 @Composable
 private fun NetWorthCard(dash: com.farhan.paisatrack.ui.DashboardState) {
+    val animatedLiquid by animateFloatAsState(
+        targetValue = dash.liquidTotal.toFloat(),
+        animationSpec = tween(700),
+        label = "liquid"
+    )
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -205,15 +234,16 @@ private fun NetWorthCard(dash: com.farhan.paisatrack.ui.DashboardState) {
                 Text("Available balance (cash + banks)", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    Format.money(dash.liquidTotal),
+                    Format.money(animatedLiquid.toDouble()),
                     color = Color.White,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    MiniStat("Net worth", Format.money(dash.netWorth))
-                    MiniStat("Card outstanding", Format.money(dash.creditOutstanding))
+                    MiniStat("Net worth", Format.moneyShort(dash.netWorth))
+                    MiniStat("Invested", Format.moneyShort(dash.investedValue))
+                    MiniStat("Card due", Format.moneyShort(dash.creditOutstanding))
                 }
             }
         }
@@ -272,8 +302,17 @@ fun SectionHeader(title: String, actionLabel: String?, onAction: (() -> Unit)?) 
 }
 
 @Composable
-private fun AccountRow(name: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, balance: Double, isCredit: Boolean) {
-    SectionCard {
+private fun AccountRow(
+    modifier: Modifier = Modifier,
+    accountId: Long,
+    name: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    balance: Double,
+    isCredit: Boolean,
+    onPayCard: (Long) -> Unit
+) {
+    SectionCard(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(icon = icon, tint = color)
             Spacer(Modifier.width(12.dp))
@@ -285,17 +324,28 @@ private fun AccountRow(name: String, icon: androidx.compose.ui.graphics.vector.I
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                Format.money(if (isCredit) -balance else balance),
-                fontWeight = FontWeight.Bold,
-                color = if (isCredit && balance < 0) ExpenseRed else MaterialTheme.colorScheme.onSurface
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    Format.money(if (isCredit) -balance else balance),
+                    fontWeight = FontWeight.Bold,
+                    color = if (isCredit && balance < 0) ExpenseRed else MaterialTheme.colorScheme.onSurface
+                )
+                if (isCredit) {
+                    TextButton(
+                        onClick = { onPayCard(accountId) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text("Pay bill", fontSize = 13.sp)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun PendingTxnCard(
+    modifier: Modifier = Modifier,
     title: String,
     subtitle: String,
     amount: Double,
@@ -304,7 +354,7 @@ private fun PendingTxnCard(
     onDismiss: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onConfirm() },
+        modifier = modifier.fillMaxWidth().clickable { onConfirm() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {

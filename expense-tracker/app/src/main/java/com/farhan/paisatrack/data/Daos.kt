@@ -37,11 +37,17 @@ interface CategoryDao {
     @Query("SELECT * FROM categories ORDER BY sortOrder, name")
     fun all(): Flow<List<Category>>
 
+    @Query("SELECT * FROM categories")
+    suspend fun allOnce(): List<Category>
+
     @Query("SELECT * FROM categories WHERE type = :type ORDER BY sortOrder, name")
     fun byType(type: TxnType): Flow<List<Category>>
 
     @Query("SELECT COUNT(*) FROM categories")
     suspend fun count(): Int
+
+    @Query("SELECT id FROM categories WHERE name = :name AND type = :type LIMIT 1")
+    suspend fun idByName(name: String, type: TxnType): Long?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(c: Category): Long
@@ -90,4 +96,19 @@ interface DebtDao {
 
     @Update suspend fun update(d: Debt)
     @Delete suspend fun delete(d: Debt)
+}
+
+@Dao
+interface InvestmentDao {
+    @Query("SELECT * FROM investments ORDER BY sold, createdAt DESC")
+    fun all(): Flow<List<Investment>>
+
+    @Query("SELECT * FROM investments WHERE id = :id")
+    suspend fun byId(id: Long): Investment?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(i: Investment): Long
+
+    @Update suspend fun update(i: Investment)
+    @Delete suspend fun delete(i: Investment)
 }

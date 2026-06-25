@@ -14,6 +14,8 @@ enum class TxnStatus { CONFIRMED, PENDING }
 
 enum class DebtDirection { I_LENT, I_BORROWED }
 
+enum class InvestmentType { STOCK, MUTUAL_FUND, GOLD, CRYPTO, FD, BOND, OTHER }
+
 @Entity(tableName = "accounts")
 data class Account(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -76,4 +78,18 @@ data class Debt(
     val settled: Boolean = false,
     val settledAt: Long? = null,
     val accountId: Long? = null
+)
+
+@Entity(tableName = "investments", indices = [Index("sold")])
+data class Investment(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val type: InvestmentType = InvestmentType.STOCK,
+    val quantity: Double = 0.0,
+    val investedAmount: Double,
+    val currentValue: Double? = null,
+    val accountId: Long? = null,
+    val createdAt: Long,
+    val note: String = "",
+    val sold: Boolean = false
 )

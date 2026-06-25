@@ -10,19 +10,30 @@ import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.Train
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -37,11 +48,22 @@ object IconMap {
         "shopping_bag" to Icons.Filled.ShoppingBag,
         "directions_car" to Icons.Filled.DirectionsCar,
         "train" to Icons.Filled.Train,
+        "flight" to Icons.Filled.Flight,
+        "local_gas" to Icons.Filled.LocalGasStation,
+        "home" to Icons.Filled.Home,
         "receipt_long" to Icons.Filled.ReceiptLong,
         "local_hospital" to Icons.Filled.LocalHospital,
         "movie" to Icons.Filled.Movie,
+        "subscriptions" to Icons.Filled.Subscriptions,
         "sports" to Icons.Filled.SportsEsports,
         "school" to Icons.Filled.School,
+        "spa" to Icons.Filled.Spa,
+        "shield" to Icons.Filled.Shield,
+        "pets" to Icons.Filled.Pets,
+        "store" to Icons.Filled.Store,
+        "work" to Icons.Filled.Work,
+        "handshake" to Icons.Filled.Handshake,
+        "trending_up" to Icons.AutoMirrored.Filled.TrendingUp,
         "payments" to Icons.Filled.Payments,
         "undo" to Icons.AutoMirrored.Filled.Undo,
         "card_giftcard" to Icons.Filled.CardGiftcard,

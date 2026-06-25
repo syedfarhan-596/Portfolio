@@ -11,6 +11,8 @@ import com.farhan.paisatrack.data.AccountType
 import com.farhan.paisatrack.data.Category
 import com.farhan.paisatrack.data.Debt
 import com.farhan.paisatrack.data.DebtDirection
+import com.farhan.paisatrack.data.Investment
+import com.farhan.paisatrack.data.InvestmentType
 import com.farhan.paisatrack.data.PeopleSummary
 import com.farhan.paisatrack.data.Repository
 import com.farhan.paisatrack.data.Txn
@@ -33,7 +35,16 @@ data class DashboardState(
     val toPay: Double = 0.0,
     val monthExpense: Double = 0.0,
     val monthIncome: Double = 0.0,
+    val investedValue: Double = 0.0,
     val balances: List<AccountBalance> = emptyList()
+)
+
+data class PortfolioState(
+    val invested: Double = 0.0,
+    val currentValue: Double = 0.0,
+    val gain: Double = 0.0,
+    val gainPct: Double = 0.0,
+    val activeCount: Int = 0
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -51,6 +62,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         repo.pendingTxns().stateInVm(emptyList())
     val debts: StateFlow<List<Debt>> =
         repo.debts().stateInVm(emptyList())
+    val investments: StateFlow<List<Investment>> =
+        repo.investments().stateInVm(emptyList())
+
+    val portfolio: StateFlow<PortfolioState> =
+        repo.investments().map { list ->
+            val active = list.filter { !it.sold }
+            val invested = active.sumOf { it.investedAmount }
+            val current = active.sumOf { it.currentValue ?: it.investedAmount }
+            val gain = current - invested
+            PortfolioState(
+                invested = invested,
+                currentValue = current,
+                gain = gain,
+                gainPct = if (invested > 0) gain / invested * 100 else 0.0,
+                activeCount = active.size
+            )
+        }.stateInVm(PortfolioState())
 
     val balances: StateFlow<List<AccountBalance>> =
         combine(repo.accounts(), repo.confirmedTxns()) { accs, txns ->
@@ -58,8 +86,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }.stateInVm(emptyList())
 
     val dashboard: StateFlow<DashboardState> =
-        combine(repo.accounts(), repo.confirmedTxns(), repo.debts()) { accs, txns, debts ->
+        combine(repo.accounts(), repo.confirmedTxns(), repo.debts(), repo.investments()) { accs, txns, debts, investments ->
             val balances = accs.map { AccountBalance(it, repo.computeBalance(it, txns)) }
+            val investedValue = investments.filter { !it.sold }.sumOf { it.currentValue ?: it.investedAmount }
             val liquid = balances.filter {
                 it.account.type != AccountType.CREDIT_CARD && it.account.includeInTotal
             }.sumOf { it.balance }
@@ -76,11 +105,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             DashboardState(
                 liquidTotal = liquid,
                 creditOutstanding = credit,
-                netWorth = liquid - credit + (toReceive - toPay),
+                netWorth = liquid - credit + (toReceive - toPay) + investedValue,
                 toReceive = toReceive,
                 toPay = toPay,
                 monthExpense = monthExpense,
                 monthIncome = monthIncome,
+                investedValue = investedValue,
                 balances = balances
             )
         }.stateInVm(DashboardState())
@@ -107,16 +137,138 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Debt ops ----
     fun saveDebt(d: Debt) = launchIo { repo.upsertDebt(d) }
     fun deleteDebt(d: Debt) = launchIo { repo.deleteDebt(d) }
-    fun settleDebt(d: Debt) = launchIo {
-        repo.updateDebt(d.copy(paidAmount = d.amount, settled = true, settledAt = System.currentTimeMillis()))
+
+    /** Record a (partial or full) payment for a debt and reflect it into the chosen account. */
+    fun recordPayment(d: Debt, amount: Double, accountId: Long?) = launchIo {
+        val remaining = (d.amount - d.paidAmount).coerceAtLeast(0.0)
+        val pay = amount.coerceIn(0.0, remaining)
+        if (pay <= 0.0) return@launchIo
+        val newPaid = (d.paidAmount + pay).coerceAtMost(d.amount)
+        val settled = newPaid >= d.amount - 0.01
+        repo.updateDebt(
+            d.copy(
+                paidAmount = newPaid,
+                settled = settled,
+                settledAt = if (settled) System.currentTimeMillis() else d.settledAt
+            )
+        )
+        if (accountId != null && accountId > 0) {
+            val isLent = d.direction == DebtDirection.I_LENT
+            val type = if (isLent) TxnType.INCOME else TxnType.EXPENSE
+            val catName = if (isLent) Repository.CAT_REPAYMENT else Repository.CAT_SETTLEMENT
+            repo.upsertTxn(
+                Txn(
+                    type = type,
+                    amount = pay,
+                    accountId = accountId,
+                    categoryId = repo.categoryDao.idByName(catName, type),
+                    note = (if (isLent) "Repayment from " else "Paid to ") + d.contactName,
+                    dateTime = System.currentTimeMillis(),
+                    contactName = d.contactName,
+                    contactKey = d.contactKey,
+                    debtId = d.id
+                )
+            )
+        }
     }
-    fun recordPayment(d: Debt, amount: Double) = launchIo {
-        val paid = (d.paidAmount + amount).coerceAtMost(d.amount)
-        val settled = paid >= d.amount - 0.01
-        repo.updateDebt(d.copy(paidAmount = paid, settled = settled,
-            settledAt = if (settled) System.currentTimeMillis() else null))
-    }
+
+    fun settleDebt(d: Debt, accountId: Long?) = recordPayment(d, d.amount - d.paidAmount, accountId)
     suspend fun debtById(id: Long) = repo.debtById(id)
+
+    // ---- Credit card ----
+    /** Pay a credit-card bill: part from a bank account (transfer) and part via reward points. */
+    fun payCreditCard(cardId: Long, fromAccountId: Long?, amountFromBank: Double, amountFromPoints: Double) = launchIo {
+        val now = System.currentTimeMillis()
+        if (amountFromBank > 0 && fromAccountId != null && fromAccountId > 0) {
+            repo.upsertTxn(
+                Txn(
+                    type = TxnType.TRANSFER,
+                    amount = amountFromBank,
+                    accountId = fromAccountId,
+                    toAccountId = cardId,
+                    note = "Credit card bill payment",
+                    dateTime = now
+                )
+            )
+        }
+        if (amountFromPoints > 0) {
+            repo.upsertTxn(
+                Txn(
+                    type = TxnType.INCOME,
+                    amount = amountFromPoints,
+                    accountId = cardId,
+                    categoryId = repo.categoryDao.idByName(Repository.CAT_CARD_POINTS, TxnType.INCOME),
+                    note = "Bill paid via reward points",
+                    dateTime = now
+                )
+            )
+        }
+    }
+
+    // ---- Investments ----
+    suspend fun investmentById(id: Long) = repo.investmentById(id)
+    fun deleteInvestment(i: Investment) = launchIo { repo.deleteInvestment(i) }
+    fun updateInvestment(i: Investment) = launchIo { repo.updateInvestment(i) }
+
+    /** Buy/add an investment; deduct the invested amount from the chosen account. */
+    fun buyInvestment(
+        name: String,
+        type: InvestmentType,
+        quantity: Double,
+        amount: Double,
+        accountId: Long?,
+        note: String,
+        date: Long,
+        currentValue: Double?
+    ) = launchIo {
+        repo.upsertInvestment(
+            Investment(
+                name = name,
+                type = type,
+                quantity = quantity,
+                investedAmount = amount,
+                currentValue = currentValue,
+                accountId = accountId,
+                createdAt = date,
+                note = note
+            )
+        )
+        if (accountId != null && accountId > 0) {
+            repo.upsertTxn(
+                Txn(
+                    type = TxnType.EXPENSE,
+                    amount = amount,
+                    accountId = accountId,
+                    categoryId = repo.categoryDao.idByName(Repository.CAT_INVESTMENT, TxnType.EXPENSE),
+                    note = "Invested in $name",
+                    merchant = name,
+                    dateTime = date
+                )
+            )
+        }
+    }
+
+    fun editInvestment(existing: Investment, name: String, type: InvestmentType, quantity: Double, invested: Double, currentValue: Double?, note: String) = launchIo {
+        repo.updateInvestment(existing.copy(name = name, type = type, quantity = quantity, investedAmount = invested, currentValue = currentValue, note = note))
+    }
+
+    /** Sell/redeem an investment; credit the proceeds to the chosen account. */
+    fun sellInvestment(inv: Investment, saleAmount: Double, accountId: Long?) = launchIo {
+        repo.updateInvestment(inv.copy(sold = true, currentValue = saleAmount))
+        if (accountId != null && accountId > 0) {
+            repo.upsertTxn(
+                Txn(
+                    type = TxnType.INCOME,
+                    amount = saleAmount,
+                    accountId = accountId,
+                    categoryId = repo.categoryDao.idByName(Repository.CAT_INVEST_RETURN, TxnType.INCOME),
+                    note = "Sold ${inv.name}",
+                    merchant = inv.name,
+                    dateTime = System.currentTimeMillis()
+                )
+            )
+        }
+    }
 
     // ---- Settings ----
     fun setReminder(enabled: Boolean, hour: Int, minute: Int) {

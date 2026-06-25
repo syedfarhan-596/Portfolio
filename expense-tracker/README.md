@@ -1,11 +1,22 @@
-# PaisaTrack — Personal Expense & Lending Tracker (Android)
+# Farhan's Wallet — Personal Expense, Lending & Investment Tracker (Android)
 
-A fully **offline**, on-device expense tracker built for the way you actually spend:
+A fully **offline**, on-device money manager built for the way you actually spend:
 multiple bank accounts + cash + a credit card, money lent to and borrowed from friends,
-expenses split with people from your contacts, and automatic capture of UPI / bank
-transactions from your SMS alerts.
+expenses split with people from your contacts, an investment portfolio, and automatic
+capture of UPI / bank transactions from your SMS alerts.
 
-> **Download the ready-to-install app:** [`PaisaTrack-v1.0.apk`](./PaisaTrack-v1.0.apk)
+> **Download the ready-to-install app:** [`Farhans-Wallet-v1.1.apk`](./Farhans-Wallet-v1.1.apk)
+
+### What's new in v1.1
+- **Portfolio** section — add stocks / mutual funds / gold / any asset, money is deducted
+  from the account you pick, see total invested, current value and returns. Sell/redeem
+  credits the proceeds back to an account.
+- **Settle dues into an account** — when settling a lending/borrowing, pick the bank and
+  enter 50% / 100% / any amount; it posts a real transaction so balances update.
+- **Pay credit-card bill** — pay part from a bank account and part with reward points;
+  outstanding reduces accordingly.
+- **More categories** (25+ expense + income), new icons, smoother animations, and the app
+  is now named **Farhan's Wallet**.
 
 ---
 

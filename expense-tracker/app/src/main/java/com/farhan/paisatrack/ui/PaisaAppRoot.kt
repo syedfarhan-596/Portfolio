@@ -1,15 +1,21 @@
 package com.farhan.paisatrack.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -29,9 +35,12 @@ import androidx.navigation.compose.rememberNavController
 import com.farhan.paisatrack.ui.screens.AccountsScreen
 import com.farhan.paisatrack.ui.screens.AddDebtScreen
 import com.farhan.paisatrack.ui.screens.AddEditTransactionScreen
+import com.farhan.paisatrack.ui.screens.AddInvestmentScreen
 import com.farhan.paisatrack.ui.screens.CategoriesScreen
 import com.farhan.paisatrack.ui.screens.DashboardScreen
+import com.farhan.paisatrack.ui.screens.PayCreditCardScreen
 import com.farhan.paisatrack.ui.screens.PeopleScreen
+import com.farhan.paisatrack.ui.screens.PortfolioScreen
 import com.farhan.paisatrack.ui.screens.ReportsScreen
 import com.farhan.paisatrack.ui.screens.SettingsScreen
 import com.farhan.paisatrack.ui.screens.TransactionsScreen
@@ -42,11 +51,10 @@ private val bottomDests = listOf(
     Dest("home", "Home", Icons.Filled.Home),
     Dest("txns", "Activity", Icons.AutoMirrored.Filled.ReceiptLong),
     Dest("people", "People", Icons.Filled.Group),
-    Dest("reports", "Reports", Icons.Filled.BarChart),
-    Dest("more", "Settings", Icons.Filled.Settings)
+    Dest("portfolio", "Invest", Icons.AutoMirrored.Filled.TrendingUp),
+    Dest("reports", "Reports", Icons.Filled.BarChart)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
     val nav = rememberNavController()
@@ -55,7 +63,11 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in bottomDests.map { it.route }
-    val showFab = currentRoute == "home" || currentRoute == "txns"
+    val fabRoute = when (currentRoute) {
+        "home", "txns" -> "addTxn"
+        "portfolio" -> "addInvestment"
+        else -> null
+    }
 
     Scaffold(
         bottomBar = {
@@ -80,9 +92,13 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
             }
         },
         floatingActionButton = {
-            if (showFab) {
-                FloatingActionButton(onClick = { nav.navigate("addTxn") }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add transaction")
+            AnimatedVisibility(
+                visible = fabRoute != null,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
+            ) {
+                androidx.compose.material3.FloatingActionButton(onClick = { fabRoute?.let { nav.navigate(it) } }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add")
                 }
             }
         }
@@ -90,7 +106,11 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
         NavHost(
             navController = nav,
             startDestination = "home",
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding),
+            enterTransition = { slideInHorizontally(animationSpec = tween(280)) { it / 6 } + fadeIn(tween(280)) },
+            exitTransition = { fadeOut(tween(180)) },
+            popEnterTransition = { fadeIn(tween(220)) },
+            popExitTransition = { slideOutHorizontally(animationSpec = tween(280)) { it / 6 } + fadeOut(tween(220)) }
         ) {
             composable("home") {
                 DashboardScreen(
@@ -98,7 +118,9 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
                     onAddTxn = { nav.navigate("addTxn") },
                     onOpenTxn = { id -> nav.navigate("addTxn?id=$id") },
                     onSeeAllTxns = { nav.navigate("txns") },
-                    onSeePeople = { nav.navigate("people") }
+                    onSeePeople = { nav.navigate("people") },
+                    onOpenSettings = { nav.navigate("settings") },
+                    onPayCard = { id -> nav.navigate("payCard?id=$id") }
                 )
             }
             composable("txns") {
@@ -115,12 +137,20 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
                     onOpenDebt = { id -> nav.navigate("addDebt?id=$id") }
                 )
             }
+            composable("portfolio") {
+                PortfolioScreen(
+                    vm = vm,
+                    onAdd = { nav.navigate("addInvestment") },
+                    onOpen = { id -> nav.navigate("addInvestment?id=$id") }
+                )
+            }
             composable("reports") { ReportsScreen(vm = vm) }
-            composable("more") {
+            composable("settings") {
                 SettingsScreen(
                     vm = vm,
                     isDark = isDark,
                     onToggleTheme = onToggleTheme,
+                    onBack = { nav.popBackStack() },
                     onManageAccounts = { nav.navigate("accounts") },
                     onManageCategories = { nav.navigate("categories") }
                 )
@@ -142,6 +172,24 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
             ) { entry ->
                 val id = entry.arguments?.getLong("id") ?: -1L
                 AddDebtScreen(vm = vm, debtId = if (id > 0) id else null, onDone = { nav.popBackStack() })
+            }
+            composable(
+                "addInvestment?id={id}",
+                arguments = listOf(androidx.navigation.navArgument("id") {
+                    type = androidx.navigation.NavType.LongType; defaultValue = -1L
+                })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: -1L
+                AddInvestmentScreen(vm = vm, investmentId = if (id > 0) id else null, onDone = { nav.popBackStack() })
+            }
+            composable(
+                "payCard?id={id}",
+                arguments = listOf(androidx.navigation.navArgument("id") {
+                    type = androidx.navigation.NavType.LongType; defaultValue = -1L
+                })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: -1L
+                PayCreditCardScreen(vm = vm, cardId = if (id > 0) id else null, onDone = { nav.popBackStack() })
             }
             composable("accounts") { AccountsScreen(vm = vm, onBack = { nav.popBackStack() }) }
             composable("categories") { CategoriesScreen(vm = vm, onBack = { nav.popBackStack() }) }

@@ -45,8 +45,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.farhan.paisatrack.data.Debt
 import com.farhan.paisatrack.data.DebtDirection
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.farhan.paisatrack.ui.MainViewModel
 import com.farhan.paisatrack.ui.components.DateTimeField
+import com.farhan.paisatrack.ui.components.LabeledDropdown
 import com.farhan.paisatrack.ui.components.rememberContactPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +67,8 @@ fun AddDebtScreen(
     var dueAfterSalary by remember { mutableStateOf(false) }
     var existing by remember { mutableStateOf<Debt?>(null) }
     var paymentText by remember { mutableStateOf("") }
+    val accounts by vm.accounts.collectAsStateWithLifecycle()
+    var payAccountId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(debtId) {
         if (debtId != null) {
@@ -180,6 +184,13 @@ fun AddDebtScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                LabeledDropdown(
+                    label = if (d.direction == DebtDirection.I_LENT) "Receive into account" else "Pay from account",
+                    options = accounts,
+                    selected = accounts.firstOrNull { it.id == (payAccountId ?: accounts.firstOrNull()?.id) },
+                    optionLabel = { it.name },
+                    onSelect = { payAccountId = it.id }
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = paymentText,
@@ -191,7 +202,8 @@ fun AddDebtScreen(
                     )
                     Button(onClick = {
                         val p = paymentText.toDoubleOrNull() ?: 0.0
-                        if (p > 0) { vm.recordPayment(d, p); onDone() }
+                        val acc = payAccountId ?: accounts.firstOrNull()?.id
+                        if (p > 0) { vm.recordPayment(d, p, acc); onDone() }
                     }) { Text("Add") }
                 }
             }

@@ -29,6 +29,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,9 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.farhan.paisatrack.data.Debt
 import com.farhan.paisatrack.data.DebtDirection
 import com.farhan.paisatrack.ui.MainViewModel
 import com.farhan.paisatrack.ui.components.EmptyState
+import com.farhan.paisatrack.ui.components.SettleDialog
 import com.farhan.paisatrack.ui.theme.ExpenseRed
 import com.farhan.paisatrack.ui.theme.IncomeGreen
 import com.farhan.paisatrack.util.Format
@@ -50,8 +55,10 @@ fun PeopleScreen(
     onOpenDebt: (Long) -> Unit
 ) {
     val people by vm.people.collectAsStateWithLifecycle()
+    val accounts by vm.accounts.collectAsStateWithLifecycle()
     val totalReceive = people.sumOf { it.toReceive }
     val totalPay = people.sumOf { it.toPay }
+    var settleTarget by remember { mutableStateOf<Debt?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -85,8 +92,23 @@ fun PeopleScreen(
         }
 
         items(people.filter { it.toReceive > 0 || it.toPay > 0 }, key = { it.contactName }) { person ->
-            PersonCard(person, onOpenDebt, vm)
+            PersonCard(person, onOpenDebt, onSettle = { settleTarget = it })
         }
+    }
+
+    settleTarget?.let { d ->
+        val isLent = d.direction == DebtDirection.I_LENT
+        SettleDialog(
+            title = if (isLent) "Receive from ${d.contactName}" else "Pay ${d.contactName}",
+            remaining = d.amount - d.paidAmount,
+            accountActionLabel = if (isLent) "Receive into account" else "Pay from account",
+            accounts = accounts,
+            onDismiss = { settleTarget = null },
+            onConfirm = { amount, accountId ->
+                vm.recordPayment(d, amount, accountId)
+                settleTarget = null
+            }
+        )
     }
 }
 
@@ -94,7 +116,7 @@ fun PeopleScreen(
 private fun PersonCard(
     person: com.farhan.paisatrack.data.PeopleSummary,
     onOpenDebt: (Long) -> Unit,
-    vm: MainViewModel
+    onSettle: (Debt) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -159,7 +181,7 @@ private fun PersonCard(
                         }
                         Text(Format.date(d.createdAt), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedButton(onClick = { vm.settleDebt(d) }) {
+                    OutlinedButton(onClick = { onSettle(d) }) {
                         Text("Settle")
                     }
                 }
