@@ -84,6 +84,8 @@ class Repository(private val db: AppDatabase) {
         const val CAT_CARD_POINTS = "Card Points Redeemed"
         const val CAT_INVESTMENT = "Investments"
         const val CAT_INVEST_RETURN = "Investment Returns"
+        const val CAT_LENT = "Money Lent"
+        const val CAT_BORROWED = "Money Borrowed"
 
         val defaultCategories: List<Category> = listOf(
             // Expenses
@@ -111,7 +113,8 @@ class Repository(private val db: AppDatabase) {
             Category(name = CAT_INVESTMENT, type = TxnType.EXPENSE, icon = "trending_up", colorHex = "#1AAD7E", isDefault = true, sortOrder = 21),
             Category(name = CAT_CARD_PAYMENT, type = TxnType.EXPENSE, icon = "credit_card", colorHex = "#E17055", isDefault = true, sortOrder = 22),
             Category(name = CAT_SETTLEMENT, type = TxnType.EXPENSE, icon = "handshake", colorHex = "#A29BFE", isDefault = true, sortOrder = 23),
-            Category(name = "Other", type = TxnType.EXPENSE, icon = "category", colorHex = "#636E72", isDefault = true, sortOrder = 24),
+            Category(name = CAT_LENT, type = TxnType.EXPENSE, icon = "handshake", colorHex = "#0984E3", isDefault = true, sortOrder = 24),
+            Category(name = "Other", type = TxnType.EXPENSE, icon = "category", colorHex = "#636E72", isDefault = true, sortOrder = 25),
             // Income
             Category(name = "Salary", type = TxnType.INCOME, icon = "payments", colorHex = "#00B894", isDefault = true, sortOrder = 0),
             Category(name = "Business", type = TxnType.INCOME, icon = "store", colorHex = "#0984E3", isDefault = true, sortOrder = 1),
@@ -120,8 +123,9 @@ class Repository(private val db: AppDatabase) {
             Category(name = "Cashback / Rewards", type = TxnType.INCOME, icon = "card_giftcard", colorHex = "#6C5CE7", isDefault = true, sortOrder = 4),
             Category(name = CAT_CARD_POINTS, type = TxnType.INCOME, icon = "star", colorHex = "#FDCB6E", isDefault = true, sortOrder = 5),
             Category(name = CAT_INVEST_RETURN, type = TxnType.INCOME, icon = "trending_up", colorHex = "#1AAD7E", isDefault = true, sortOrder = 6),
-            Category(name = "Interest", type = TxnType.INCOME, icon = "savings", colorHex = "#00CEC9", isDefault = true, sortOrder = 7),
-            Category(name = "Other Income", type = TxnType.INCOME, icon = "category", colorHex = "#636E72", isDefault = true, sortOrder = 8)
+            Category(name = CAT_BORROWED, type = TxnType.INCOME, icon = "handshake", colorHex = "#FDCB6E", isDefault = true, sortOrder = 7),
+            Category(name = "Interest", type = TxnType.INCOME, icon = "savings", colorHex = "#00CEC9", isDefault = true, sortOrder = 8),
+            Category(name = "Other Income", type = TxnType.INCOME, icon = "category", colorHex = "#636E72", isDefault = true, sortOrder = 9)
         )
 
         suspend fun seedIfEmpty(db: AppDatabase) {

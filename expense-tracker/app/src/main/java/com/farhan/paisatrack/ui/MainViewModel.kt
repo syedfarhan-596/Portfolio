@@ -138,6 +138,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun saveDebt(d: Debt) = launchIo { repo.upsertDebt(d) }
     fun deleteDebt(d: Debt) = launchIo { repo.deleteDebt(d) }
 
+    /**
+     * Create a NEW lending/borrowing entry and reflect the principal into the chosen account:
+     * lending money out reduces the account (EXPENSE), borrowing increases it (INCOME).
+     * Used only for brand-new entries; editing an existing debt never re-posts.
+     */
+    fun addLending(d: Debt, accountId: Long?) = launchIo {
+        val id = repo.upsertDebt(d.copy(accountId = accountId))
+        if (accountId != null && accountId > 0) {
+            val isLent = d.direction == DebtDirection.I_LENT
+            val type = if (isLent) TxnType.EXPENSE else TxnType.INCOME
+            val catName = if (isLent) Repository.CAT_LENT else Repository.CAT_BORROWED
+            repo.upsertTxn(
+                Txn(
+                    type = type,
+                    amount = d.amount,
+                    accountId = accountId,
+                    categoryId = repo.categoryDao.idByName(catName, type),
+                    note = (if (isLent) "Lent to " else "Borrowed from ") + d.contactName,
+                    dateTime = d.createdAt,
+                    contactName = d.contactName,
+                    contactKey = d.contactKey,
+                    debtId = id
+                )
+            )
+        }
+    }
+
     /** Record a (partial or full) payment for a debt and reflect it into the chosen account. */
     fun recordPayment(d: Debt, amount: Double, accountId: Long?) = launchIo {
         val remaining = (d.amount - d.paidAmount).coerceAtLeast(0.0)

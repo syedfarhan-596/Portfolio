@@ -69,6 +69,11 @@ fun AddDebtScreen(
     var paymentText by remember { mutableStateOf("") }
     val accounts by vm.accounts.collectAsStateWithLifecycle()
     var payAccountId by remember { mutableStateOf<Long?>(null) }
+    var lendAccountId by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(accounts) {
+        if (lendAccountId == null && accounts.isNotEmpty()) lendAccountId = accounts.first().id
+    }
 
     LaunchedEffect(debtId) {
         if (debtId != null) {
@@ -166,6 +171,24 @@ fun AddDebtScreen(
 
             DateTimeField(millis = createdAt, onChange = { createdAt = it })
 
+            if (existing == null) {
+                LabeledDropdown(
+                    label = if (direction == DebtDirection.I_LENT) "Money goes out of (account)" else "Money received into (account)",
+                    options = accounts,
+                    selected = accounts.firstOrNull { it.id == lendAccountId },
+                    optionLabel = { it.name },
+                    onSelect = { lendAccountId = it.id }
+                )
+                Text(
+                    if (direction == DebtDirection.I_LENT)
+                        "This amount will be deducted from the selected account now."
+                    else
+                        "This amount will be added to the selected account now.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -214,21 +237,33 @@ fun AddDebtScreen(
                     val amt = amount.toDoubleOrNull() ?: return@Button
                     if (amt <= 0) return@Button
                     val name = contactName?.takeIf { it.isNotBlank() } ?: "Someone"
-                    val debt = (existing ?: Debt(
-                        contactName = name,
-                        direction = direction,
-                        amount = amt,
-                        createdAt = createdAt
-                    )).copy(
-                        contactName = name,
-                        contactKey = contactKey,
-                        direction = direction,
-                        amount = amt,
-                        note = note,
-                        createdAt = createdAt,
-                        dueAfterSalary = dueAfterSalary
-                    )
-                    vm.saveDebt(debt)
+                    val e = existing
+                    if (e == null) {
+                        // New entry: create it and reflect the amount into the chosen account.
+                        val debt = Debt(
+                            contactName = name,
+                            contactKey = contactKey,
+                            direction = direction,
+                            amount = amt,
+                            note = note,
+                            createdAt = createdAt,
+                            dueAfterSalary = dueAfterSalary
+                        )
+                        vm.addLending(debt, lendAccountId)
+                    } else {
+                        // Editing an existing record: never re-post a transaction or change balances.
+                        vm.saveDebt(
+                            e.copy(
+                                contactName = name,
+                                contactKey = contactKey,
+                                direction = direction,
+                                amount = amt,
+                                note = note,
+                                createdAt = createdAt,
+                                dueAfterSalary = dueAfterSalary
+                            )
+                        )
+                    }
                     onDone()
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
