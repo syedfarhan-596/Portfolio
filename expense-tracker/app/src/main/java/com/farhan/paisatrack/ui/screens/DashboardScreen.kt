@@ -328,7 +328,7 @@ private fun AccountRow(
                 Text(
                     Format.money(if (isCredit) -balance else balance),
                     fontWeight = FontWeight.Bold,
-                    color = if (isCredit && balance < 0) ExpenseRed else MaterialTheme.colorScheme.onSurface
+                    color = if (isCredit && balance > 0) ExpenseRed else MaterialTheme.colorScheme.onSurface
                 )
                 if (isCredit) {
                     TextButton(

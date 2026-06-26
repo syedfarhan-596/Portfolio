@@ -54,7 +54,7 @@ fun PayCreditCardScreen(
     var bankAmount by remember { mutableStateOf("") }
     var pointsAmount by remember { mutableStateOf("") }
 
-    val outstanding = balances.firstOrNull { it.account.id == selectedCardId }?.let { -it.balance } ?: 0.0
+    val outstanding = balances.firstOrNull { it.account.id == selectedCardId }?.balance ?: 0.0
 
     Scaffold(
         topBar = {

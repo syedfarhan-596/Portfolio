@@ -91,7 +91,12 @@ fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Text(Format.money(ab.balance), fontWeight = FontWeight.Bold)
+                        val isCard = ab.account.type == AccountType.CREDIT_CARD
+                        Text(
+                            Format.money(if (isCard) -ab.balance else ab.balance),
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCard && ab.balance > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
@@ -167,7 +172,7 @@ private fun AccountEditorDialog(
                 OutlinedTextField(
                     value = opening,
                     onValueChange = { opening = it.filter { c -> c.isDigit() || c == '.' || c == '-' } },
-                    label = { Text("Opening balance (₹)") },
+                    label = { Text(if (type == AccountType.CREDIT_CARD) "Current outstanding owed (₹)" else "Opening balance (₹)") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()

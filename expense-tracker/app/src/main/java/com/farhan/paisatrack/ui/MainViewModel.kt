@@ -93,7 +93,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 it.account.type != AccountType.CREDIT_CARD && it.account.includeInTotal
             }.sumOf { it.balance }
             val credit = balances.filter { it.account.type == AccountType.CREDIT_CARD }
-                .sumOf { -it.balance } // spent on card = negative balance -> positive outstanding
+                .sumOf { it.balance } // card balance already represents outstanding owed
             val toReceive = debts.filter { !it.settled && it.direction == DebtDirection.I_LENT }
                 .sumOf { it.amount - it.paidAmount }
             val toPay = debts.filter { !it.settled && it.direction == DebtDirection.I_BORROWED }

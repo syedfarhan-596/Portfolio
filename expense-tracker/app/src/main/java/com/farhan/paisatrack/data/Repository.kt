@@ -59,17 +59,29 @@ class Repository(private val db: AppDatabase) {
     suspend fun updateInvestment(i: Investment) = investmentDao.update(i)
     suspend fun deleteInvestment(i: Investment) = investmentDao.delete(i)
 
-    /** Compute live balance for one account from confirmed transactions. */
+    /**
+     * Compute live balance for one account from confirmed transactions.
+     *
+     * For a normal account, balance = money you have (income adds, expense subtracts).
+     * For a CREDIT CARD, balance = amount you OWE (outstanding): spending / lending on the
+     * card increases what you owe, while bill payments and refunds reduce it. The signs are
+     * therefore inverted for credit cards so the outstanding moves in the intuitive direction.
+     */
     fun computeBalance(account: Account, txns: List<Txn>): Double {
+        val card = account.type == AccountType.CREDIT_CARD
         var bal = account.openingBalance
         for (t in txns) {
             if (t.status != TxnStatus.CONFIRMED) continue
             when (t.type) {
-                TxnType.INCOME -> if (t.accountId == account.id) bal += t.amount
-                TxnType.EXPENSE -> if (t.accountId == account.id) bal -= t.amount
+                TxnType.INCOME ->
+                    if (t.accountId == account.id) bal += if (card) -t.amount else t.amount
+                TxnType.EXPENSE ->
+                    if (t.accountId == account.id) bal += if (card) t.amount else -t.amount
                 TxnType.TRANSFER -> {
-                    if (t.accountId == account.id) bal -= t.amount
-                    if (t.toAccountId == account.id) bal += t.amount
+                    // money leaving this account
+                    if (t.accountId == account.id) bal += if (card) t.amount else -t.amount
+                    // money entering this account (e.g. a bill payment into a card)
+                    if (t.toAccountId == account.id) bal += if (card) -t.amount else t.amount
                 }
             }
         }
