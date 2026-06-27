@@ -1,7 +1,7 @@
 name: farhans_wallet
 description: "Farhan's Wallet — premium offline expense, lending & investment tracker."
 publish_to: 'none'
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: ^3.5.0

@@ -228,7 +228,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     Expanded(
                       child: PrimaryButton(
-                        label: 'Export & share',
+                        label: 'Export',
                         icon: Icons.ios_share_rounded,
                         onPressed: () async {
                           final data = await ref.read(walletProvider.notifier).exportData();
