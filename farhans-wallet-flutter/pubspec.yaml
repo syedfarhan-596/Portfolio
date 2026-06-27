@@ -1,0 +1,36 @@
+name: farhans_wallet
+description: "Farhan's Wallet — premium offline expense, lending & investment tracker."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Local database & storage
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.3
+
+  # Formatting
+  intl: ^0.20.2
+
+  # Device integrations (preserve original feature set)
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_contacts: ^1.1.9+2
+  another_telephony: ^0.4.1
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
