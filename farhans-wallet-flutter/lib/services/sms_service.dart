@@ -28,14 +28,18 @@ class SmsService {
   }
 
   void listenIncoming(void Function(SmsRecord) onMessage) {
-    _telephony.listenIncomingSms(
-      onNewMessage: (SmsMessage message) {
-        onMessage(SmsRecord(
-          message.body ?? '',
-          message.date ?? DateTime.now().millisecondsSinceEpoch,
-        ));
-      },
-      listenInBackground: false,
-    );
+    try {
+      _telephony.listenIncomingSms(
+        onNewMessage: (SmsMessage message) {
+          onMessage(SmsRecord(
+            message.body ?? '',
+            message.date ?? DateTime.now().millisecondsSinceEpoch,
+          ));
+        },
+        listenInBackground: false,
+      );
+    } catch (_) {
+      // No SMS permission yet — listening will be retried after it's granted.
+    }
   }
 }

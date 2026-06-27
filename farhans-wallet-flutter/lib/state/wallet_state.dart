@@ -370,64 +370,88 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     await _refresh();
   }
 
-  // ── SMS import ──
-  /// Scans the SMS inbox for bank/UPI alerts and adds them as pending txns.
-  /// [prompt] asks for permission (manual scans); [sinceLastOnly] only looks at
-  /// messages newer than the last scan (used silently on every app open).
-  /// Returns the number added, or -1 if permission was denied.
-  Future<int> importSmsInbox({bool prompt = true, bool sinceLastOnly = false}) async {
-    final sms = ref.read(smsServiceProvider);
-    if (prompt) {
-      final granted = await sms.requestPermission();
-      if (!granted) return -1;
+  // ── SMS capture ──
+  bool _listening = false;
+
+  /// On first launch, ask once for SMS + notification permission. Old messages
+  /// are excluded because [Prefs.lastSmsScan] is seeded to install time in main().
+  Future<void> ensureSmsSetup() async {
+    if (!_prefs.smsCapture) return;
+    if (!_prefs.smsPermAsked) {
+      _prefs.smsPermAsked = true;
+      await ref.read(smsServiceProvider).requestPermission();
+      await ref.read(notificationProvider).requestPermission();
     }
-    final List<SmsRecord> records;
-    try {
-      records = await sms.readInbox();
-    } catch (_) {
-      return prompt ? -1 : 0;
-    }
-    final accounts = state.value?.accounts ?? const <Account>[];
-    // Bank-name match wins; otherwise use the chosen default, or leave the
-    // account unassigned (0) when no default is set so it's picked on confirm.
-    final fallback = _prefs.defaultUpiAccountId > 0 ? _prefs.defaultUpiAccountId : 0;
-    final since = sinceLastOnly ? _prefs.lastSmsScan : 0;
-    var count = 0;
-    var maxDate = _prefs.lastSmsScan;
-    for (final r in records) {
-      if (sinceLastOnly && r.date <= since) continue;
-      if (r.date > maxDate) maxDate = r.date;
-      final parsed = SmsParser.parse(r.body);
-      if (parsed == null) continue;
-      if (parsed.ref != null && await _repo.upiRefExists(parsed.ref!)) continue;
-      await _repo.upsertTxn(Txn(
-        type: parsed.type,
-        amount: parsed.amount,
-        accountId: _accountForBank(parsed.bankHint, accounts, fallback),
-        merchant: parsed.merchant,
-        dateTime: r.date,
-        source: TxnSource.import_,
-        status: TxnStatus.pending,
-        upiRef: parsed.ref,
-        rawSms: r.body,
-      ));
-      count++;
-    }
-    if (maxDate > _prefs.lastSmsScan) _prefs.lastSmsScan = maxDate;
-    await _refresh();
-    return count;
   }
 
-  /// Picks the account whose name matches the bank mentioned in the SMS.
-  int _accountForBank(String? hint, List<Account> accounts, int fallback) {
+  /// Start listening for incoming SMS in real time (while the app is running).
+  void startSmsListener() {
+    if (_listening || !_prefs.smsCapture) return;
+    _listening = true;
+    ref.read(smsServiceProvider).listenIncoming((r) => _captureSms(r, notify: true));
+  }
+
+  /// Catch up on any bank SMS that arrived (after install) while the app was
+  /// closed. Never imports pre-install messages.
+  Future<void> scanNewSms() async {
+    if (!_prefs.smsCapture) return;
+    final List<SmsRecord> records;
+    try {
+      records = await ref.read(smsServiceProvider).readInbox();
+    } catch (_) {
+      return;
+    }
+    final since = _prefs.lastSmsScan;
+    final recent = records.where((r) => r.date > since).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    for (final r in recent) {
+      await _captureSms(r, notify: false, refresh: false);
+    }
+    await _refresh();
+  }
+
+  /// Parse a single SMS and, if it's a bank/UPI transaction, add it directly as
+  /// a confirmed transaction (no approval) and optionally notify the user.
+  Future<void> _captureSms(SmsRecord r, {required bool notify, bool refresh = true}) async {
+    if (r.date > _prefs.lastSmsScan) _prefs.lastSmsScan = r.date;
+    final parsed = SmsParser.parse(r.body);
+    if (parsed == null) return;
+    if (parsed.ref != null && await _repo.upiRefExists(parsed.ref!)) return;
+
+    final accounts = state.value?.accounts ?? const <Account>[];
+    await _repo.upsertTxn(Txn(
+      type: parsed.type,
+      amount: parsed.amount,
+      accountId: _accountForBank(parsed.bankHint, accounts), // 0 = unassigned
+      merchant: parsed.merchant,
+      dateTime: r.date,
+      source: TxnSource.sms,
+      status: TxnStatus.confirmed,
+      upiRef: parsed.ref,
+      rawSms: r.body,
+    ));
+
+    if (notify) {
+      final credited = parsed.type == TxnType.income;
+      final where = parsed.merchant.isNotEmpty ? ' · ${parsed.merchant}' : '';
+      await ref.read(notificationProvider).showTxnDetected(
+            credited ? 'Money received' : 'Money spent',
+            '${credited ? '+' : '-'}₹${parsed.amount.toStringAsFixed(2)}$where — tap to set category/account',
+          );
+    }
+    if (refresh) await _refresh();
+  }
+
+  /// Account whose name matches the bank in the SMS, else 0 (unassigned).
+  int _accountForBank(String? hint, List<Account> accounts) {
     if (hint != null && hint.isNotEmpty) {
       final h = hint.toLowerCase();
       for (final a in accounts) {
         final n = a.name.toLowerCase();
-        if (n.contains(h) || h.contains(n)) return a.id ?? fallback;
+        if (n.contains(h) || h.contains(n)) return a.id ?? 0;
       }
     }
-    return fallback;
+    return 0;
   }
 
   // ── Backup / restore ──

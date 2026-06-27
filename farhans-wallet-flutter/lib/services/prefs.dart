@@ -19,10 +19,12 @@ class Prefs {
   bool get smsCapture => _sp.getBool('sms_capture') ?? true;
   set smsCapture(bool v) => _sp.setBool('sms_capture', v);
 
-  int get defaultUpiAccountId => _sp.getInt('default_upi_account') ?? -1;
-  set defaultUpiAccountId(int v) => _sp.setInt('default_upi_account', v);
+  /// Whether we've already asked for SMS/notification permission once.
+  bool get smsPermAsked => _sp.getBool('sms_perm_asked') ?? false;
+  set smsPermAsked(bool v) => _sp.setBool('sms_perm_asked', v);
 
-  /// Epoch millis of the newest SMS already scanned (for incremental scans).
+  /// Epoch millis of the newest SMS already captured. Seeded to install time so
+  /// pre-existing (old) messages are never imported.
   int get lastSmsScan => _sp.getInt('last_sms_scan') ?? 0;
   set lastSmsScan(int v) => _sp.setInt('last_sms_scan', v);
 

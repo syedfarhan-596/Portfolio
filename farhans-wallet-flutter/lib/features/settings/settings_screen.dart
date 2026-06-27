@@ -7,7 +7,6 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/detail_scaffold.dart';
 import '../../core/widgets/fields.dart';
 import '../../core/widgets/glass.dart';
-import '../../data/models.dart';
 import '../../state/wallet_state.dart';
 import 'accounts_screen.dart';
 import 'categories_screen.dart';
@@ -24,8 +23,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final prefs = ref.read(prefsProvider);
-    final data = ref.watch(walletProvider).value;
-    final accounts = data?.accounts ?? [];
 
     return DetailScaffold(
       title: 'Settings',
@@ -96,7 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Icons.sms_rounded,
                   t.success,
                   'Auto-capture from SMS',
-                  'Detect UPI / bank transactions automatically',
+                  'Transactions are added automatically when a bank/UPI SMS arrives',
                   Switch(
                     value: prefs.smsCapture,
                     activeThumbColor: t.accentA,
@@ -106,47 +103,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Insets.sm),
                 Pressable(
                   onTap: () async {
-                    final count = await ref.read(walletProvider.notifier).importSmsInbox();
+                    final sms = ref.read(smsServiceProvider);
+                    final granted = await sms.requestPermission();
+                    if (!granted) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('SMS permission is needed to read transactions')));
+                      return;
+                    }
+                    await ref.read(walletProvider.notifier).scanNewSms();
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(count < 0
-                          ? 'SMS permission needed to read transactions'
-                          : 'Imported $count transactions from SMS'),
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Checked for new transactions')));
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.download_rounded, color: t.accentA),
+                      Icon(Icons.refresh_rounded, color: t.accentA),
                       const SizedBox(width: Insets.xs),
-                      Text('Scan SMS inbox now',
+                      Text('Check for new SMS now',
                           style: TextStyle(color: t.accentA, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: Insets.sm),
-          // Default UPI account
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _row(Icons.account_balance_wallet_rounded, t.info,
-                    'Default account for detected UPI', null, null),
-                const SizedBox(height: Insets.sm),
-                AppSelectField<Account?>(
-                  label: 'Account',
-                  value: accounts.where((a) => a.id == prefs.defaultUpiAccountId).firstOrNull,
-                  options: <Account?>[null, ...accounts],
-                  optionLabel: (a) => a == null ? 'None — auto-detect by bank only' : a.name,
-                  onChanged: (a) => setState(() => prefs.defaultUpiAccountId = a?.id ?? -1),
-                ),
                 const SizedBox(height: Insets.xs),
                 Text(
-                  'Detected SMS goes to the account whose name matches the bank in the '
-                  'message (e.g. name an account “Kotak”). This default is only used when '
-                  'no name matches — set it to None to never fall back to a default.',
+                  'New SMS are added automatically (debit or credit). The account is set from '
+                  'the bank name in the SMS (e.g. name an account “Kotak”); otherwise it’s left '
+                  'unset for you to pick. Only messages received after installing are captured.',
                   style: context.text.bodySmall?.copyWith(color: t.textMid),
                 ),
               ],

@@ -27,7 +27,13 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoScanSms());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final notifier = ref.read(walletProvider.notifier);
+      await notifier.ensureSmsSetup(); // first-run permission prompt
+      notifier.startSmsListener(); // real-time capture while running
+      notifier.scanNewSms(); // catch up on SMS received while app was closed
+    });
   }
 
   @override
@@ -38,14 +44,10 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _autoScanSms();
-  }
-
-  /// Silently pull any new bank/UPI SMS each time the app opens / resumes.
-  void _autoScanSms() {
-    if (!mounted) return;
-    if (ref.read(prefsProvider).smsCapture) {
-      ref.read(walletProvider.notifier).importSmsInbox(prompt: false, sinceLastOnly: true);
+    if (state == AppLifecycleState.resumed && mounted) {
+      final notifier = ref.read(walletProvider.notifier);
+      notifier.startSmsListener();
+      notifier.scanNewSms();
     }
   }
 

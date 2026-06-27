@@ -15,6 +15,10 @@ Future<void> main() async {
   ));
 
   final prefs = await Prefs.create();
+  // Seed to install time so only SMS received after installing are captured.
+  if (prefs.lastSmsScan == 0) {
+    prefs.lastSmsScan = DateTime.now().millisecondsSinceEpoch;
+  }
 
   final notifications = NotificationService();
   await notifications.init();
