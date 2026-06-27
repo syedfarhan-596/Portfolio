@@ -9,6 +9,7 @@ import '../services/backup_service.dart';
 import '../services/contacts_service.dart';
 import '../services/notification_service.dart';
 import '../services/prefs.dart';
+import '../services/sms_background.dart';
 import '../services/sms_parser.dart';
 import '../services/sms_service.dart';
 
@@ -384,11 +385,15 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     }
   }
 
-  /// Start listening for incoming SMS in real time (while the app is running).
+  /// Start listening for incoming SMS — in real time while running, and via a
+  /// background isolate (smsBackgroundHandler) when the app is closed/killed.
   void startSmsListener() {
     if (_listening || !_prefs.smsCapture) return;
     _listening = true;
-    ref.read(smsServiceProvider).listenIncoming((r) => _captureSms(r, notify: true));
+    ref.read(smsServiceProvider).listenIncoming(
+          (r) => _captureSms(r, notify: true),
+          onBackground: smsBackgroundHandler,
+        );
   }
 
   /// Catch up on any bank SMS that arrived (after install) while the app was

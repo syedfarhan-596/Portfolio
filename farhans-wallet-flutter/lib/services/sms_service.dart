@@ -27,7 +27,10 @@ class SmsService {
         .toList();
   }
 
-  void listenIncoming(void Function(SmsRecord) onMessage) {
+  void listenIncoming(
+    void Function(SmsRecord) onMessage, {
+    MessageHandler? onBackground,
+  }) {
     try {
       _telephony.listenIncomingSms(
         onNewMessage: (SmsMessage message) {
@@ -36,7 +39,8 @@ class SmsService {
             message.date ?? DateTime.now().millisecondsSinceEpoch,
           ));
         },
-        listenInBackground: false,
+        onBackgroundMessage: onBackground,
+        listenInBackground: onBackground != null,
       );
     } catch (_) {
       // No SMS permission yet — listening will be retried after it's granted.

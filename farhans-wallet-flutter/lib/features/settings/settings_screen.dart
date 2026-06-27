@@ -136,6 +136,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: Insets.sm),
+          _backupCard(context),
+          const SizedBox(height: Insets.sm),
           _navCard(Icons.account_balance_rounded, t.warning, 'Manage accounts',
               'Banks, cash & cards', () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen()));
@@ -175,64 +177,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: Insets.sm),
-          // Backup & restore
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _row(Icons.cloud_sync_rounded, t.info, 'Backup & restore', null, null),
-                const SizedBox(height: Insets.sm),
-                Container(
-                  padding: const EdgeInsets.all(Insets.sm),
-                  decoration: BoxDecoration(
-                    color: t.glassFill,
-                    borderRadius: BorderRadius.circular(Corners.sm),
-                    border: Border.all(color: t.glassBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Move your data to another phone', style: context.text.titleSmall),
-                      const SizedBox(height: 6),
-                      _step(context, '1', 'Tap Export & share below and save the backup file (to Drive, WhatsApp, Files…).'),
-                      _step(context, '2', 'Install Pocket Flow on the other phone.'),
-                      _step(context, '3', 'There, open Settings → Backup & restore → Import and pick that file.'),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tip: export now and then so a backup exists before you ever uninstall — '
-                        'the app also opts into Android auto-backup, but an exported file is the sure way.',
-                        style: context.text.bodySmall?.copyWith(color: t.textMid),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: Insets.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: PrimaryButton(
-                        label: 'Export',
-                        icon: Icons.ios_share_rounded,
-                        onPressed: () async {
-                          final data = await ref.read(walletProvider.notifier).exportData();
-                          await ref.read(backupServiceProvider).exportAndShare(data);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: Insets.sm),
-                    Expanded(
-                      child: SecondaryButton(
-                        label: 'Import',
-                        icon: Icons.download_rounded,
-                        onPressed: () => _import(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: Insets.sm),
           GlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,6 +190,66 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _backupCard(BuildContext context) {
+    final t = context.tokens;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _row(Icons.cloud_sync_rounded, t.info, 'Backup & restore', null, null),
+          const SizedBox(height: Insets.sm),
+          Container(
+            padding: const EdgeInsets.all(Insets.sm),
+            decoration: BoxDecoration(
+              color: t.glassFill,
+              borderRadius: BorderRadius.circular(Corners.sm),
+              border: Border.all(color: t.glassBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Move your data to another phone', style: context.text.titleSmall),
+                const SizedBox(height: 6),
+                _step(context, '1', 'Tap Export below and save the backup file (to Drive, WhatsApp, Files…).'),
+                _step(context, '2', 'Install Pocket Flow on the other phone.'),
+                _step(context, '3', 'There, open Settings → Backup & restore → Import and pick that file.'),
+                const SizedBox(height: 6),
+                Text(
+                  'Tip: export now and then so a backup exists before you ever uninstall — '
+                  'the app also opts into Android auto-backup, but an exported file is the sure way.',
+                  style: context.text.bodySmall?.copyWith(color: t.textMid),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Insets.md),
+          Row(
+            children: [
+              Expanded(
+                child: PrimaryButton(
+                  label: 'Export',
+                  icon: Icons.ios_share_rounded,
+                  onPressed: () async {
+                    final data = await ref.read(walletProvider.notifier).exportData();
+                    await ref.read(backupServiceProvider).exportAndShare(data);
+                  },
+                ),
+              ),
+              const SizedBox(width: Insets.sm),
+              Expanded(
+                child: SecondaryButton(
+                  label: 'Import',
+                  icon: Icons.download_rounded,
+                  onPressed: () => _import(context),
+                ),
+              ),
+            ],
           ),
         ],
       ),
