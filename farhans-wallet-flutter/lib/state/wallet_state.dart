@@ -5,6 +5,7 @@ import '../core/utils/format.dart';
 import '../data/app_database.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
+import '../services/backup_service.dart';
 import '../services/contacts_service.dart';
 import '../services/notification_service.dart';
 import '../services/prefs.dart';
@@ -18,6 +19,7 @@ final repositoryProvider = Provider<Repository>((ref) => Repository(AppDatabase.
 final notificationProvider = Provider<NotificationService>((ref) => NotificationService());
 final smsServiceProvider = Provider<SmsService>((ref) => SmsService());
 final contactsServiceProvider = Provider<ContactsService>((ref) => ContactsService());
+final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) {
   switch (ref.read(prefsProvider).themeMode) {
@@ -351,23 +353,39 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
   }
 
   // ── SMS import ──
-  Future<int> importSmsInbox() async {
+  /// Scans the SMS inbox for bank/UPI alerts and adds them as pending txns.
+  /// [prompt] asks for permission (manual scans); [sinceLastOnly] only looks at
+  /// messages newer than the last scan (used silently on every app open).
+  /// Returns the number added, or -1 if permission was denied.
+  Future<int> importSmsInbox({bool prompt = true, bool sinceLastOnly = false}) async {
     final sms = ref.read(smsServiceProvider);
-    final granted = await sms.requestPermission();
-    if (!granted) return -1;
-    final records = await sms.readInbox();
-    final accId = _prefs.defaultUpiAccountId > 0
+    if (prompt) {
+      final granted = await sms.requestPermission();
+      if (!granted) return -1;
+    }
+    final List<SmsRecord> records;
+    try {
+      records = await sms.readInbox();
+    } catch (_) {
+      return prompt ? -1 : 0;
+    }
+    final accounts = state.value?.accounts ?? const <Account>[];
+    final fallback = _prefs.defaultUpiAccountId > 0
         ? _prefs.defaultUpiAccountId
-        : (state.value?.accounts.isNotEmpty == true ? state.value!.accounts.first.id! : 0);
+        : (accounts.isNotEmpty ? accounts.first.id! : 0);
+    final since = sinceLastOnly ? _prefs.lastSmsScan : 0;
     var count = 0;
+    var maxDate = _prefs.lastSmsScan;
     for (final r in records) {
+      if (sinceLastOnly && r.date <= since) continue;
+      if (r.date > maxDate) maxDate = r.date;
       final parsed = SmsParser.parse(r.body);
       if (parsed == null) continue;
       if (parsed.ref != null && await _repo.upiRefExists(parsed.ref!)) continue;
       await _repo.upsertTxn(Txn(
         type: parsed.type,
         amount: parsed.amount,
-        accountId: accId,
+        accountId: _accountForBank(parsed.bankHint, accounts, fallback),
         merchant: parsed.merchant,
         dateTime: r.date,
         source: TxnSource.import_,
@@ -377,7 +395,28 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
       ));
       count++;
     }
+    if (maxDate > _prefs.lastSmsScan) _prefs.lastSmsScan = maxDate;
     await _refresh();
     return count;
+  }
+
+  /// Picks the account whose name matches the bank mentioned in the SMS.
+  int _accountForBank(String? hint, List<Account> accounts, int fallback) {
+    if (hint != null && hint.isNotEmpty) {
+      final h = hint.toLowerCase();
+      for (final a in accounts) {
+        final n = a.name.toLowerCase();
+        if (n.contains(h) || h.contains(n)) return a.id ?? fallback;
+      }
+    }
+    return fallback;
+  }
+
+  // ── Backup / restore ──
+  Future<Map<String, dynamic>> exportData() => _repo.exportAll();
+
+  Future<void> importData(Map<String, dynamic> data) async {
+    await _repo.importAll(data);
+    await _refresh();
   }
 }

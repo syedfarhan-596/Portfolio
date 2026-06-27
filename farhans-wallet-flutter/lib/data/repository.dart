@@ -120,6 +120,38 @@ class Repository {
     return rows.isNotEmpty;
   }
 
+  // ───────────────────────── Backup / restore ─────────────────────────
+  Future<Map<String, dynamic>> exportAll() async {
+    final db = await _db;
+    return {
+      'app': 'pocket_flow',
+      'version': 1,
+      'exportedAt': DateTime.now().millisecondsSinceEpoch,
+      'accounts': await db.query('accounts'),
+      'categories': await db.query('categories'),
+      'transactions': await db.query('transactions'),
+      'debts': await db.query('debts'),
+      'investments': await db.query('investments'),
+    };
+  }
+
+  /// Replaces all current data with the contents of a backup file.
+  Future<void> importAll(Map<String, dynamic> data) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      for (final t in ['transactions', 'debts', 'investments', 'categories', 'accounts']) {
+        await txn.delete(t);
+      }
+      for (final table in ['accounts', 'categories', 'transactions', 'debts', 'investments']) {
+        final rows = (data[table] as List?) ?? const [];
+        for (final row in rows) {
+          await txn.insert(table, Map<String, Object?>.from(row as Map),
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      }
+    });
+  }
+
   /// Live balance for one account. For credit cards the balance represents the
   /// amount OWED (outstanding): spending/lending raises it, payments reduce it.
   static double computeBalance(Account account, List<Txn> txns) {

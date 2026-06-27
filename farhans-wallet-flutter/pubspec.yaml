@@ -29,6 +29,10 @@ dependencies:
   flutter_contacts: ^1.1.9+2
   another_telephony: ^0.4.1
 
+  # Backup / restore (move data to another device)
+  share_plus: ^10.1.4
+  file_picker: ^8.1.6
+
 dev_dependencies:
   flutter_lints: ^5.0.0
 

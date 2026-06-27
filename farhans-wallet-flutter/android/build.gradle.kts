@@ -15,26 +15,32 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
-subprojects {
-    project.evaluationDependsOn(":app")
-}
 
-// Some plugins (e.g. another_telephony) compile Java and Kotlin with different
-// JVM targets, which fails the build. Force a consistent JVM 17 target everywhere.
+// Some plugins compile against an older compileSdk or mismatch Java/Kotlin JVM
+// targets, which fails the build. Normalise every module to compileSdk 36 +
+// JVM 17. Registered before the evaluationDependsOn block below so afterEvaluate
+// runs only after each plugin has applied its own (older) configuration.
 subprojects {
-    plugins.withId("com.android.library") {
-        extensions.configure(com.android.build.api.dsl.LibraryExtension::class.java) {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+    afterEvaluate {
+        extensions.findByType(com.android.build.api.dsl.LibraryExtension::class.java)?.apply {
+            if (compileSdk == null || compileSdk!! < 36) {
+                compileSdk = 36
+            }
             compileOptions {
                 sourceCompatibility = JavaVersion.VERSION_17
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
     }
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
-    }
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {

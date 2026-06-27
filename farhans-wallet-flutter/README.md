@@ -1,8 +1,12 @@
-# Farhan's Wallet — Flutter
+# Pocket Flow — Flutter
 
 A premium, **fully offline** personal finance app — a ground-up **Flutter** rewrite of
-the original Android (Kotlin/Compose) "Farhan's Wallet", with the same features and a new
+the original Android (Kotlin/Compose) wallet, with the same features and a new
 **2026 glassmorphism design system**.
+
+> Auto-scans bank/UPI SMS on every app open (incremental), auto-matches the bank from the
+> SMS to the right account, and includes **Backup & restore** (export a JSON file to move
+> your data to another phone) plus Android auto-backup.
 
 > Feature parity with the original: multi-account balances, automatic UPI/bank SMS capture,
 > manual transactions, lending/borrowing with contacts, credit-card bill payment (incl.

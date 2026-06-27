@@ -22,6 +22,10 @@ class Prefs {
   int get defaultUpiAccountId => _sp.getInt('default_upi_account') ?? -1;
   set defaultUpiAccountId(int v) => _sp.setInt('default_upi_account', v);
 
+  /// Epoch millis of the newest SMS already scanned (for incremental scans).
+  int get lastSmsScan => _sp.getInt('last_sms_scan') ?? 0;
+  set lastSmsScan(int v) => _sp.setInt('last_sms_scan', v);
+
   /// 0 = system, 1 = light, 2 = dark
   int get themeMode => _sp.getInt('theme_mode') ?? 2;
   set themeMode(int v) => _sp.setInt('theme_mode', v);

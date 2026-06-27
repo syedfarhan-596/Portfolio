@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/bits.dart';
+import '../../core/widgets/buttons.dart';
 import '../../core/widgets/detail_scaffold.dart';
 import '../../core/widgets/fields.dart';
 import '../../core/widgets/glass.dart';
@@ -184,6 +185,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: Insets.sm),
+          // Backup & restore
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _row(Icons.cloud_sync_rounded, t.info, 'Backup & restore', null, null),
+                const SizedBox(height: Insets.sm),
+                Container(
+                  padding: const EdgeInsets.all(Insets.sm),
+                  decoration: BoxDecoration(
+                    color: t.glassFill,
+                    borderRadius: BorderRadius.circular(Corners.sm),
+                    border: Border.all(color: t.glassBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Move your data to another phone', style: context.text.titleSmall),
+                      const SizedBox(height: 6),
+                      _step(context, '1', 'Tap Export & share below and save the backup file (to Drive, WhatsApp, Files…).'),
+                      _step(context, '2', 'Install Pocket Flow on the other phone.'),
+                      _step(context, '3', 'There, open Settings → Backup & restore → Import and pick that file.'),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Tip: export now and then so a backup exists before you ever uninstall — '
+                        'the app also opts into Android auto-backup, but an exported file is the sure way.',
+                        style: context.text.bodySmall?.copyWith(color: t.textMid),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Insets.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PrimaryButton(
+                        label: 'Export & share',
+                        icon: Icons.ios_share_rounded,
+                        onPressed: () async {
+                          final data = await ref.read(walletProvider.notifier).exportData();
+                          await ref.read(backupServiceProvider).exportAndShare(data);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: Insets.sm),
+                    Expanded(
+                      child: SecondaryButton(
+                        label: 'Import',
+                        icon: Icons.download_rounded,
+                        onPressed: () => _import(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Insets.sm),
           GlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,12 +250,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('🔒 100% on your device', style: context.text.titleSmall),
                 const SizedBox(height: 4),
                 Text(
-                  'All your data is stored locally in this app. Nothing is uploaded to any server.',
+                  'All your data is stored locally — nothing is uploaded to any server. '
+                  'Uninstalling removes the local copy, so keep an exported backup if you want to restore later.',
                   style: context.text.bodyMedium?.copyWith(color: t.textMid),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _import(BuildContext context) async {
+    final data = await ref.read(backupServiceProvider).pickAndRead();
+    if (data == null || !context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.tokens.bgBottom,
+        title: const Text('Restore from backup?'),
+        content: const Text(
+            'This replaces all current data in Pocket Flow with the contents of the backup file. Continue?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restore')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await ref.read(walletProvider.notifier).importData(data);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Data restored successfully')));
+  }
+
+  Widget _step(BuildContext context, String n, String text) {
+    final t = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: t.accentA.withValues(alpha: 0.18), shape: BoxShape.circle),
+            child: Text(n, style: TextStyle(color: t.accentA, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: Insets.xs),
+          Expanded(child: Text(text, style: context.text.bodySmall?.copyWith(color: t.textMid))),
         ],
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/glass.dart';
+import '../../state/wallet_state.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../people/people_screen.dart';
 import '../portfolio/portfolio_screen.dart';
@@ -19,8 +20,34 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoScanSms());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _autoScanSms();
+  }
+
+  /// Silently pull any new bank/UPI SMS each time the app opens / resumes.
+  void _autoScanSms() {
+    if (!mounted) return;
+    if (ref.read(prefsProvider).smsCapture) {
+      ref.read(walletProvider.notifier).importSmsInbox(prompt: false, sinceLastOnly: true);
+    }
+  }
 
   static const _items = [
     (_NavItem(Icons.grid_view_rounded, 'Home')),
