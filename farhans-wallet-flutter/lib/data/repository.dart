@@ -93,6 +93,11 @@ class Repository {
     await db.delete('debts', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<void> deleteTxnsByDebt(int debtId) async {
+    final db = await _db;
+    await db.delete('transactions', where: 'debtId = ?', whereArgs: [debtId]);
+  }
+
   Future<int> upsertInvestment(Investment i) async {
     final db = await _db;
     if (i.id == null) return db.insert('investments', i.toMap()..remove('id'));

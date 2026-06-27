@@ -28,6 +28,7 @@ class _State extends ConsumerState<AddDebtScreen> {
   late DateTime _dt;
   String? _contactKey;
   bool _dueAfterSalary = false;
+  bool _reflect = true;
   int? _accountId;
   int? _payAccountId;
 
@@ -46,6 +47,7 @@ class _State extends ConsumerState<AddDebtScreen> {
       _dt = DateTime.fromMillisecondsSinceEpoch(d.createdAt);
       _dueAfterSalary = d.dueAfterSalary;
       _accountId = d.accountId;
+      _reflect = d.principalTxnId != null;
     } else {
       _dt = DateTime.now();
     }
@@ -94,7 +96,7 @@ class _State extends ConsumerState<AddDebtScreen> {
       bottomBar: PrimaryButton(
         label: _editing ? 'Update' : 'Save',
         icon: Icons.check_rounded,
-        onPressed: () => _save(accounts),
+        onPressed: _save,
       ),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(Insets.lg, Insets.xs, Insets.lg, Insets.lg),
@@ -106,7 +108,12 @@ class _State extends ConsumerState<AddDebtScreen> {
             onChanged: (v) => setState(() => _dir = v),
           ),
           const SizedBox(height: Insets.md),
-          AppTextField(label: 'Amount (₹)', controller: _amount, amount: true),
+          AppTextField(
+            label: 'Amount (₹)',
+            controller: _amount,
+            amount: true,
+            onChanged: (_) => setState(() {}),
+          ),
           const SizedBox(height: Insets.md),
           SecondaryButton(
             label: _name.text.isEmpty ? 'Pick person from contacts' : 'Change person',
@@ -118,25 +125,8 @@ class _State extends ConsumerState<AddDebtScreen> {
           const SizedBox(height: Insets.md),
           _DateField(dt: _dt, onTap: _pickDate),
           const SizedBox(height: Insets.md),
-          if (!_editing) ...[
-            AppSelectField<Account>(
-              label: _dir == DebtDirection.iLent
-                  ? 'Money goes out of (account)'
-                  : 'Money received into (account)',
-              value: accounts.where((a) => a.id == _accountId).firstOrNull,
-              options: accounts,
-              optionLabel: (a) => a.name,
-              onChanged: (a) => setState(() => _accountId = a.id),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _dir == DebtDirection.iLent
-                  ? 'This amount will be deducted from the selected account now.'
-                  : 'This amount will be added to the selected account now.',
-              style: context.text.bodySmall?.copyWith(color: t.textMid),
-            ),
-            const SizedBox(height: Insets.md),
-          ],
+          _reflectCard(data, accounts),
+          const SizedBox(height: Insets.md),
           AppTextField(label: 'What is it for? (note)', controller: _note, maxLines: 2),
           const SizedBox(height: Insets.md),
           GlassCard(
@@ -197,41 +187,106 @@ class _State extends ConsumerState<AddDebtScreen> {
     );
   }
 
+  Widget _reflectCard(WalletData data, List<Account> accounts) {
+    final t = context.tokens;
+    final acc = accounts.where((a) => a.id == _accountId).firstOrNull;
+    final amt = double.tryParse(_amount.text) ?? 0;
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Reflect in account balance', style: context.text.titleSmall),
+                    Text(
+                      _dir == DebtDirection.iLent
+                          ? 'Deduct this amount from an account now'
+                          : 'Add this amount to an account now',
+                      style: context.text.bodySmall?.copyWith(color: t.textMid),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _reflect,
+                activeThumbColor: t.accentA,
+                onChanged: (v) => setState(() => _reflect = v),
+              ),
+            ],
+          ),
+          if (_reflect) ...[
+            const SizedBox(height: Insets.sm),
+            AppSelectField<Account>(
+              label: 'Account',
+              value: acc,
+              options: accounts,
+              optionLabel: (a) => a.name,
+              onChanged: (a) => setState(() => _accountId = a.id),
+            ),
+            if (acc != null && amt > 0) ...[
+              const SizedBox(height: Insets.sm),
+              Builder(builder: (_) {
+                final cur = data.balanceOf(acc.id!);
+                final lent = _dir == DebtDirection.iLent;
+                final card = acc.type == AccountType.creditCard;
+                final delta = card ? (lent ? amt : -amt) : (lent ? -amt : amt);
+                final newBal = cur + delta;
+                final curShown = card ? -cur : cur;
+                final newShown = card ? -newBal : newBal;
+                return Container(
+                  padding: const EdgeInsets.all(Insets.sm),
+                  decoration: BoxDecoration(
+                    color: t.accentA.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(Corners.sm),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.account_balance_wallet_rounded, size: 18, color: t.accentA),
+                      const SizedBox(width: Insets.xs),
+                      Expanded(
+                        child: Text(
+                          '${acc.name}: ${Money.format(curShown)} → ${Money.format(newShown)}',
+                          style: context.text.bodySmall?.copyWith(
+                              color: t.textHigh, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickDate() async {
     final d = await showDatePicker(
         context: context, initialDate: _dt, firstDate: DateTime(2015), lastDate: DateTime(2100));
     if (d != null) setState(() => _dt = DateTime(d.year, d.month, d.day, _dt.hour, _dt.minute));
   }
 
-  void _save(List<Account> accounts) {
+  void _save() {
     final amt = double.tryParse(_amount.text) ?? 0;
     if (amt <= 0) return;
     final name = _name.text.trim().isEmpty ? 'Someone' : _name.text.trim();
-    final notifier = ref.read(walletProvider.notifier);
-    if (!_editing) {
-      notifier.addLending(
-        Debt(
-          contactName: name,
-          contactKey: _contactKey,
-          direction: _dir,
-          amount: amt,
-          note: _note.text,
-          createdAt: _dt.millisecondsSinceEpoch,
-          dueAfterSalary: _dueAfterSalary,
-        ),
-        _accountId,
-      );
-    } else {
-      notifier.saveDebt(widget.debt!.copyWith(
-        contactName: name,
-        contactKey: _contactKey,
-        direction: _dir,
-        amount: amt,
-        note: _note.text,
-        createdAt: _dt.millisecondsSinceEpoch,
-        dueAfterSalary: _dueAfterSalary,
-      ));
-    }
+    final base = widget.debt ??
+        Debt(contactName: name, direction: _dir, amount: amt, createdAt: _dt.millisecondsSinceEpoch);
+    final debt = base.copyWith(
+      contactName: name,
+      contactKey: _contactKey,
+      direction: _dir,
+      amount: amt,
+      note: _note.text,
+      createdAt: _dt.millisecondsSinceEpoch,
+      dueAfterSalary: _dueAfterSalary,
+    );
+    ref.read(walletProvider.notifier).saveDebtReflected(debt, _reflect, _accountId);
     Navigator.pop(context);
   }
 }

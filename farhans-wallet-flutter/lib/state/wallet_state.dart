@@ -227,28 +227,46 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
   }
 
   Future<void> deleteDebt(Debt d) async {
-    if (d.id != null) await _repo.deleteDebt(d.id!);
+    if (d.id != null) {
+      await _repo.deleteTxnsByDebt(d.id!); // remove principal + any repayment txns
+      await _repo.deleteDebt(d.id!);
+    }
     await _refresh();
   }
 
-  /// New lending/borrowing entry that reflects the principal into an account.
-  Future<void> addLending(Debt d, int? accountId) async {
-    final id = await _repo.upsertDebt(d.copyWith(accountId: accountId));
-    if (accountId != null && accountId > 0) {
-      final isLent = d.direction == DebtDirection.iLent;
+  /// Create or update a lending/borrowing entry. When [reflect] is true the
+  /// principal is mirrored into [accountId] via a linked transaction that is
+  /// kept in sync on every edit; when false, no account balance is touched.
+  /// This keeps balances and stats correct whenever a due is changed.
+  Future<void> saveDebtReflected(Debt input, bool reflect, int? accountId) async {
+    // 1. Ensure the due row exists and get its id.
+    final reflectAccount = reflect ? accountId : input.accountId;
+    final debtId = await _repo.upsertDebt(input.copyWith(accountId: reflectAccount));
+    final debt = input.copyWith(id: debtId);
+
+    // 2. Reconcile the principal transaction that mirrors it into the account.
+    final existingTxnId = input.principalTxnId;
+    if (reflect && accountId != null && accountId > 0) {
+      final isLent = debt.direction == DebtDirection.iLent;
       final type = isLent ? TxnType.expense : TxnType.income;
-      final catName = isLent ? Cats.lent : Cats.borrowed;
-      await _repo.upsertTxn(Txn(
+      final txnId = await _repo.upsertTxn(Txn(
+        id: existingTxnId, // updates the existing entry, or inserts a new one
         type: type,
-        amount: d.amount,
+        amount: debt.amount,
         accountId: accountId,
-        categoryId: await _repo.categoryIdByName(catName, type),
-        note: (isLent ? 'Lent to ' : 'Borrowed from ') + d.contactName,
-        dateTime: d.createdAt,
-        contactName: d.contactName,
-        contactKey: d.contactKey,
-        debtId: id,
+        categoryId: await _repo.categoryIdByName(isLent ? Cats.lent : Cats.borrowed, type),
+        note: (isLent ? 'Lent to ' : 'Borrowed from ') + debt.contactName,
+        dateTime: debt.createdAt,
+        contactName: debt.contactName,
+        contactKey: debt.contactKey,
+        debtId: debtId,
       ));
+      await _repo.upsertDebt(
+          debt.withLinks(id: debtId, accountId: accountId, principalTxnId: txnId));
+    } else {
+      if (existingTxnId != null) await _repo.deleteTxn(existingTxnId);
+      await _repo.upsertDebt(
+          debt.withLinks(id: debtId, accountId: debt.accountId, principalTxnId: null));
     }
     await _refresh();
   }

@@ -282,6 +282,10 @@ class Debt {
   final int? settledAt;
   final int? accountId;
 
+  /// Id of the transaction that reflects this due's principal into [accountId],
+  /// or null if the due was recorded without touching any account balance.
+  final int? principalTxnId;
+
   const Debt({
     this.id,
     required this.contactName,
@@ -295,6 +299,7 @@ class Debt {
     this.settled = false,
     this.settledAt,
     this.accountId,
+    this.principalTxnId,
   });
 
   double get remaining => (amount - paidAmount).clamp(0, double.infinity);
@@ -312,6 +317,7 @@ class Debt {
     bool? settled,
     int? settledAt,
     int? accountId,
+    int? principalTxnId,
   }) =>
       Debt(
         id: id ?? this.id,
@@ -326,6 +332,26 @@ class Debt {
         settled: settled ?? this.settled,
         settledAt: settledAt ?? this.settledAt,
         accountId: accountId ?? this.accountId,
+        principalTxnId: principalTxnId ?? this.principalTxnId,
+      );
+
+  /// copyWith can't set nullable fields back to null, so use this to rebuild a
+  /// due with explicit account / principal-transaction links.
+  Debt withLinks({required int id, required int? accountId, required int? principalTxnId}) =>
+      Debt(
+        id: id,
+        contactName: contactName,
+        contactKey: contactKey,
+        direction: direction,
+        amount: amount,
+        paidAmount: paidAmount,
+        note: note,
+        createdAt: createdAt,
+        dueAfterSalary: dueAfterSalary,
+        settled: settled,
+        settledAt: settledAt,
+        accountId: accountId,
+        principalTxnId: principalTxnId,
       );
 
   Map<String, Object?> toMap() => {
@@ -341,6 +367,7 @@ class Debt {
         'settled': settled ? 1 : 0,
         'settledAt': settledAt,
         'accountId': accountId,
+        'principalTxnId': principalTxnId,
       };
 
   factory Debt.fromMap(Map<String, Object?> m) => Debt(
@@ -356,6 +383,7 @@ class Debt {
         settled: (m['settled'] as int? ?? 0) == 1,
         settledAt: m['settledAt'] as int?,
         accountId: m['accountId'] as int?,
+        principalTxnId: m['principalTxnId'] as int?,
       );
 }
 

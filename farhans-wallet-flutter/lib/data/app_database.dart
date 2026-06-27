@@ -31,11 +31,25 @@ class AppDatabase {
     final path = p.join(dir, 'farhans_wallet.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, v) async {
         await _createSchema(db);
         await _seed(db);
+      },
+      onUpgrade: (db, oldV, newV) async {
+        if (oldV < 2) {
+          await db.execute('ALTER TABLE debts ADD COLUMN principalTxnId INTEGER');
+          // Backfill: link each due to its existing principal transaction.
+          await db.execute('''
+            UPDATE debts SET principalTxnId = (
+              SELECT t.id FROM transactions t
+              WHERE t.debtId = debts.id
+                AND (t.note LIKE 'Lent to%' OR t.note LIKE 'Borrowed from%')
+              ORDER BY t.id LIMIT 1
+            )
+          ''');
+        }
       },
     );
   }
@@ -98,7 +112,8 @@ class AppDatabase {
         dueAfterSalary INTEGER NOT NULL DEFAULT 0,
         settled INTEGER NOT NULL DEFAULT 0,
         settledAt INTEGER,
-        accountId INTEGER
+        accountId INTEGER,
+        principalTxnId INTEGER
       )''');
     await db.execute('''
       CREATE TABLE investments(
