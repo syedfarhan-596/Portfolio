@@ -388,9 +388,9 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
       return prompt ? -1 : 0;
     }
     final accounts = state.value?.accounts ?? const <Account>[];
-    final fallback = _prefs.defaultUpiAccountId > 0
-        ? _prefs.defaultUpiAccountId
-        : (accounts.isNotEmpty ? accounts.first.id! : 0);
+    // Bank-name match wins; otherwise use the chosen default, or leave the
+    // account unassigned (0) when no default is set so it's picked on confirm.
+    final fallback = _prefs.defaultUpiAccountId > 0 ? _prefs.defaultUpiAccountId : 0;
     final since = sinceLastOnly ? _prefs.lastSmsScan : 0;
     var count = 0;
     var maxDate = _prefs.lastSmsScan;

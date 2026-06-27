@@ -135,12 +135,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _row(Icons.account_balance_wallet_rounded, t.info,
                     'Default account for detected UPI', null, null),
                 const SizedBox(height: Insets.sm),
-                AppSelectField<Account>(
+                AppSelectField<Account?>(
                   label: 'Account',
                   value: accounts.where((a) => a.id == prefs.defaultUpiAccountId).firstOrNull,
-                  options: accounts,
-                  optionLabel: (a) => a.name,
-                  onChanged: (a) => setState(() => prefs.defaultUpiAccountId = a.id ?? -1),
+                  options: <Account?>[null, ...accounts],
+                  optionLabel: (a) => a == null ? 'None — auto-detect by bank only' : a.name,
+                  onChanged: (a) => setState(() => prefs.defaultUpiAccountId = a?.id ?? -1),
+                ),
+                const SizedBox(height: Insets.xs),
+                Text(
+                  'Detected SMS goes to the account whose name matches the bank in the '
+                  'message (e.g. name an account “Kotak”). This default is only used when '
+                  'no name matches — set it to None to never fall back to a default.',
+                  style: context.text.bodySmall?.copyWith(color: t.textMid),
                 ),
               ],
             ),

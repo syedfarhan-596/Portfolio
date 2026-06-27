@@ -44,7 +44,7 @@ class _State extends ConsumerState<AddEditTransactionScreen> {
       _amount.text = _trim(t.amount);
       _merchant.text = t.merchant;
       _note.text = t.note;
-      _accountId = t.accountId;
+      _accountId = t.accountId == 0 ? null : t.accountId; // 0 = unassigned pending
       _toAccountId = t.toAccountId;
       _categoryId = t.categoryId;
       _dt = DateTime.fromMillisecondsSinceEpoch(t.dateTime);
