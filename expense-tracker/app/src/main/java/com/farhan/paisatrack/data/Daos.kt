@@ -16,6 +16,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE archived = 0 ORDER BY sortOrder, id")
     fun active(): Flow<List<Account>>
 
+    @Query("SELECT * FROM accounts WHERE archived = 0 ORDER BY sortOrder, id")
+    suspend fun activeOnce(): List<Account>
+
     @Query("SELECT * FROM accounts WHERE id = :id")
     suspend fun byId(id: Long): Account?
 

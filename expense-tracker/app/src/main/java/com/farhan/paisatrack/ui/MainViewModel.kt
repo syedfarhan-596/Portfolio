@@ -312,9 +312,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val added = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val ctx = getApplication<Application>()
-                val accId = repo.accountDao.firstActiveId()
-                    ?: prefs.defaultUpiAccountId.takeIf { it > 0 } ?: 0L
-                val targetAcc = if (prefs.defaultUpiAccountId > 0) prefs.defaultUpiAccountId else accId
+                val accounts = repo.accountDao.activeOnce()
+                val fallbackAcc = repo.accountDao.firstActiveId() ?: 0L
                 var count = 0
                 val uri = android.provider.Telephony.Sms.Inbox.CONTENT_URI
                 val cols = arrayOf(
@@ -330,6 +329,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         val date = c.getLong(dateIdx)
                         val parsed = com.farhan.paisatrack.sms.SmsParser.parse(body) ?: continue
                         if (parsed.ref != null && repo.refExists(parsed.ref)) continue
+                        val targetAcc = com.farhan.paisatrack.sms.SmsParser.matchAccountId(
+                            accounts, parsed, prefs.defaultUpiAccountId
+                        ) ?: fallbackAcc
                         repo.upsertTxn(
                             Txn(
                                 type = parsed.type,

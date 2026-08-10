@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -53,7 +54,7 @@ import com.farhan.paisatrack.util.IconMap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit, onOpenAccount: (Long) -> Unit) {
     val balances by vm.balances.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Account?>(null) }
     var showDialog by remember { mutableStateOf(false) }
@@ -79,7 +80,7 @@ fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(balances, key = { it.account.id }) { ab ->
-                SectionCard(modifier = Modifier.clickable { editing = ab.account; showDialog = true }) {
+                SectionCard(modifier = Modifier.clickable { onOpenAccount(ab.account.id) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconBadge(IconMap.icon(ab.account.icon), IconMap.parseColor(ab.account.colorHex))
                         Spacer(Modifier.width(12.dp))
@@ -97,6 +98,9 @@ fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             color = if (isCard && ab.balance > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
+                        IconButton(onClick = { editing = ab.account; showDialog = true }) {
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit ${ab.account.name}")
+                        }
                     }
                 }
             }
@@ -115,7 +119,7 @@ fun AccountsScreen(vm: MainViewModel, onBack: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccountEditorDialog(
+fun AccountEditorDialog(
     account: Account?,
     onDismiss: () -> Unit,
     onSave: (Account) -> Unit,

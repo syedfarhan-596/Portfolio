@@ -34,8 +34,9 @@ class SmsReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 if (parsed.ref != null && repo.refExists(parsed.ref)) return@launch
-                val accountId = if (defaultAccount > 0) defaultAccount
-                else (repo.accountDao.firstActiveId() ?: 0L)
+                val accounts = repo.accountDao.activeOnce()
+                val accountId = SmsParser.matchAccountId(accounts, parsed, defaultAccount)
+                    ?: repo.accountDao.firstActiveId() ?: 0L
                 val txn = Txn(
                     type = parsed.type,
                     amount = parsed.amount,

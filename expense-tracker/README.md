@@ -5,7 +5,20 @@ multiple bank accounts + cash + a credit card, money lent to and borrowed from f
 expenses split with people from your contacts, an investment portfolio, and automatic
 capture of UPI / bank transactions from your SMS alerts.
 
-> **Download the ready-to-install app:** [`Farhans-Wallet-v1.1.apk`](./Farhans-Wallet-v1.1.apk)
+> **Download the ready-to-install app:** [`Farhans-Wallet-v1.3.apk`](./Farhans-Wallet-v1.3.apk)
+
+### What's new in v1.4
+- **SMS matching now respects the bank/card in the message** — a charge on your SBI credit
+  card no longer lands in your SBI savings account (or whatever the default account was);
+  it's matched to the right account by bank name and account type (credit card vs bank).
+  Applies to both live SMS capture and "Scan SMS inbox now".
+- **Marketing/promotional bank SMS are filtered out** — messages like cashback offers,
+  loan pre-approvals and "flat X% off" promos are no longer mistaken for transactions.
+- **Tap an account to see its summary** — balance, this month's spend/income, and the full
+  transaction history for that account (edit is still one tap away, via the pencil icon).
+- **Daily reminder is now reliable** — switched from a WorkManager job (which Doze/App
+  Standby could silently delay for hours) to an exact `AlarmManager` alarm, so the nightly
+  "log your expenses" notification actually fires at the time you set.
 
 ### What's new in v1.1
 - **Portfolio** section — add stocks / mutual funds / gold / any asset, money is deducted
@@ -92,5 +105,5 @@ can rebuild and reinstall over the same app. Keystore/key password: `paisatrack1
 
 ## Tech stack
 
-Kotlin · Jetpack Compose (Material 3) · Room · WorkManager · Navigation Compose ·
+Kotlin · Jetpack Compose (Material 3) · Room · AlarmManager · Navigation Compose ·
 single-module MVVM, no network code.

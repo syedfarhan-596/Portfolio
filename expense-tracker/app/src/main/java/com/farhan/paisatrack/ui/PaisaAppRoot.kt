@@ -32,6 +32,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.farhan.paisatrack.ui.screens.AccountDetailScreen
 import com.farhan.paisatrack.ui.screens.AccountsScreen
 import com.farhan.paisatrack.ui.screens.AddDebtScreen
 import com.farhan.paisatrack.ui.screens.AddEditTransactionScreen
@@ -120,7 +121,8 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
                     onSeeAllTxns = { nav.navigate("txns") },
                     onSeePeople = { nav.navigate("people") },
                     onOpenSettings = { nav.navigate("settings") },
-                    onPayCard = { id -> nav.navigate("payCard?id=$id") }
+                    onPayCard = { id -> nav.navigate("payCard?id=$id") },
+                    onOpenAccount = { id -> nav.navigate("accountDetail/$id") }
                 )
             }
             composable("txns") {
@@ -191,8 +193,26 @@ fun PaisaApproot(isDark: Boolean, onToggleTheme: () -> Unit) {
                 val id = entry.arguments?.getLong("id") ?: -1L
                 PayCreditCardScreen(vm = vm, cardId = if (id > 0) id else null, onDone = { nav.popBackStack() })
             }
-            composable("accounts") { AccountsScreen(vm = vm, onBack = { nav.popBackStack() }) }
+            composable("accounts") {
+                AccountsScreen(
+                    vm = vm,
+                    onBack = { nav.popBackStack() },
+                    onOpenAccount = { id -> nav.navigate("accountDetail/$id") }
+                )
+            }
             composable("categories") { CategoriesScreen(vm = vm, onBack = { nav.popBackStack() }) }
+            composable(
+                "accountDetail/{id}",
+                arguments = listOf(androidx.navigation.navArgument("id") { type = androidx.navigation.NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: -1L
+                AccountDetailScreen(
+                    vm = vm,
+                    accountId = id,
+                    onBack = { nav.popBackStack() },
+                    onOpenTxn = { txnId -> nav.navigate("addTxn?id=$txnId") }
+                )
+            }
         }
     }
 }

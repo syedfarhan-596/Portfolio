@@ -65,7 +65,8 @@ fun DashboardScreen(
     onSeeAllTxns: () -> Unit,
     onSeePeople: () -> Unit,
     onOpenSettings: () -> Unit,
-    onPayCard: (Long) -> Unit
+    onPayCard: (Long) -> Unit,
+    onOpenAccount: (Long) -> Unit
 ) {
     val dash by vm.dashboard.collectAsStateWithLifecycle()
     val txns by vm.confirmedTxns.collectAsStateWithLifecycle()
@@ -168,7 +169,8 @@ fun DashboardScreen(
                 color = IconMap.parseColor(ab.account.colorHex),
                 balance = ab.balance,
                 isCredit = ab.account.type == AccountType.CREDIT_CARD,
-                onPayCard = onPayCard
+                onPayCard = onPayCard,
+                onClick = onOpenAccount
             )
         }
 
@@ -310,9 +312,10 @@ private fun AccountRow(
     color: Color,
     balance: Double,
     isCredit: Boolean,
-    onPayCard: (Long) -> Unit
+    onPayCard: (Long) -> Unit,
+    onClick: (Long) -> Unit
 ) {
-    SectionCard(modifier = modifier) {
+    SectionCard(modifier = modifier.clickable { onClick(accountId) }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(icon = icon, tint = color)
             Spacer(Modifier.width(12.dp))
