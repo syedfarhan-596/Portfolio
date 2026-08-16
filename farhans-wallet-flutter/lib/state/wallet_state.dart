@@ -427,7 +427,7 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     await _repo.upsertTxn(Txn(
       type: parsed.type,
       amount: parsed.amount,
-      accountId: _accountForBank(parsed.bankHint, accounts), // 0 = unassigned
+      accountId: SmsParser.matchAccountId(accounts, parsed), // 0 = unassigned
       merchant: parsed.merchant,
       dateTime: r.date,
       source: TxnSource.sms,
@@ -445,18 +445,6 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
           );
     }
     if (refresh) await _refresh();
-  }
-
-  /// Account whose name matches the bank in the SMS, else 0 (unassigned).
-  int _accountForBank(String? hint, List<Account> accounts) {
-    if (hint != null && hint.isNotEmpty) {
-      final h = hint.toLowerCase();
-      for (final a in accounts) {
-        final n = a.name.toLowerCase();
-        if (n.contains(h) || h.contains(n)) return a.id ?? 0;
-      }
-    }
-    return 0;
   }
 
   // ── Backup / restore ──

@@ -13,6 +13,7 @@ import '../../core/widgets/pickers.dart';
 import '../../core/widgets/sheets.dart';
 import '../../data/models.dart';
 import '../../state/wallet_state.dart';
+import 'account_detail_screen.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -36,7 +37,8 @@ class AccountsScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: Insets.xs),
               child: GlassCard(
-                onTap: () => _edit(context, ref, b.account),
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => AccountDetailScreen(accountId: b.account.id!))),
                 padding: const EdgeInsets.all(Insets.sm),
                 radius: Corners.md,
                 child: Row(
@@ -60,6 +62,11 @@ class AccountsScreen extends ConsumerWidget {
                               ? t.danger
                               : t.textHigh),
                     ),
+                    IconButton(
+                      onPressed: () => _edit(context, ref, b.account),
+                      icon: Icon(Icons.edit_rounded, color: t.textMid, size: 20),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ],
                 ),
               ),
@@ -77,20 +84,20 @@ class AccountsScreen extends ConsumerWidget {
       };
 
   void _edit(BuildContext context, WidgetRef ref, Account? account) {
-    showGlassSheet(context, _AccountEditor(account: account, ref: ref));
+    showGlassSheet(context, AccountEditor(account: account, ref: ref));
   }
 }
 
-class _AccountEditor extends StatefulWidget {
+class AccountEditor extends StatefulWidget {
   final Account? account;
   final WidgetRef ref;
-  const _AccountEditor({required this.account, required this.ref});
+  const AccountEditor({super.key, required this.account, required this.ref});
 
   @override
-  State<_AccountEditor> createState() => _AccountEditorState();
+  State<AccountEditor> createState() => _AccountEditorState();
 }
 
-class _AccountEditorState extends State<_AccountEditor> {
+class _AccountEditorState extends State<AccountEditor> {
   late final TextEditingController _name = TextEditingController(text: widget.account?.name ?? '');
   late final TextEditingController _opening = TextEditingController(
       text: widget.account == null ? '' : _trim(widget.account!.openingBalance));

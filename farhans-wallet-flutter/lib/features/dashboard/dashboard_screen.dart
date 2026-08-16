@@ -10,6 +10,7 @@ import '../../core/widgets/glass.dart';
 import '../../data/models.dart';
 import '../../state/wallet_state.dart';
 import '../credit/pay_credit_card_screen.dart';
+import '../settings/account_detail_screen.dart';
 import '../settings/settings_screen.dart';
 import '../transactions/add_edit_transaction_screen.dart';
 import '../transactions/transaction_tile.dart';
@@ -256,6 +257,8 @@ class _AccountRow extends StatelessWidget {
     final isCard = a.type == AccountType.creditCard;
     final shown = isCard ? -balance.balance : balance.balance;
     return GlassCard(
+      onTap: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => AccountDetailScreen(accountId: a.id!))),
       padding: const EdgeInsets.all(Insets.sm),
       radius: Corners.md,
       child: Row(

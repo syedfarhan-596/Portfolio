@@ -32,17 +32,7 @@ Future<void> smsBackgroundHandler(SmsMessage message) async {
   if (parsed.ref != null && await repo.upiRefExists(parsed.ref!)) return;
 
   final accounts = await repo.accounts();
-  int accountId = 0; // unassigned unless an account name matches the bank
-  final hint = parsed.bankHint?.toLowerCase();
-  if (hint != null && hint.isNotEmpty) {
-    for (final a in accounts) {
-      final n = a.name.toLowerCase();
-      if (n.contains(hint) || hint.contains(n)) {
-        accountId = a.id ?? 0;
-        break;
-      }
-    }
-  }
+  final accountId = SmsParser.matchAccountId(accounts, parsed); // 0 = unassigned
 
   await repo.upsertTxn(Txn(
     type: parsed.type,

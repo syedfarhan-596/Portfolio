@@ -6,7 +6,9 @@ class ParsedSms {
   final String merchant;
   final String? ref;
   final String? bankHint;
-  const ParsedSms(this.amount, this.type, this.merchant, this.ref, this.bankHint);
+  final bool isCreditCard;
+  const ParsedSms(this.amount, this.type, this.merchant, this.ref, this.bankHint,
+      {this.isCreditCard = false});
 }
 
 /// Heuristic parser for Indian bank / UPI alert SMS. Mirrors the original app.
@@ -17,6 +19,23 @@ class SmsParser {
   ];
   static final _credit = [
     'credited', 'credit', 'received', 'deposited', 'added', 'refund'
+  ];
+
+  // Bank/marketing SMS that mention money but are not real transaction alerts.
+  static final _promoWords = [
+    'cashback up to', 'up to ₹', 'upto ₹', '% off', '% cashback', 'flat off', 'flat ₹',
+    'mega sale', 'sale is live', 'offer valid', 'limited period', 'limited time',
+    'hurry', 'lucky draw', 'click here', 'apply now', 'pre-approved', 'preapproved',
+    'pre approved', 'instant loan', 'insta loan', 'personal loan of', 'loan up to',
+    'loan offer', 't&c apply', 'tnc apply', 'terms and conditions apply', 'unsubscribe',
+    'download now', 'install now', 'book now', 'shop now', 'explore now',
+    'grab the deal', 'deal of the day', 'exclusive offer', 'new arrival',
+    'coupon code', 'promo code', 'voucher code', 'congratulations you',
+    'you have won', "you've won", 'redeem now', 'free gift', 'starting at just',
+    'get flat', 'save up to', 'lowest price', 'best offer', 'special offer',
+    'welcome offer', 'festive offer', 'bumper offer', 'win rewards', 'win prizes',
+    'reply stop', 'know more', 'call now', 'visit nearest branch to avail',
+    'eligible for a loan', 'increase your limit', 'activate now', 'upgrade now',
   ];
 
   static final _amount = RegExp(
@@ -32,12 +51,29 @@ class SmsParser {
     caseSensitive: false,
   );
   static final _bankRe = RegExp(
-    r'\b(hdfc|icici|sbi|axis|kotak|yes bank|pnb|bob|canara|idfc|indusind|federal|rbl|au bank|paytm|phonepe|gpay|amazon pay)\b',
+    r'\b(hdfc|icici|state bank of india|sbi card|sbi|axis|kotak|yes bank|punjab national bank|pnb|bank of baroda|bob|canara|idfc|indusind|federal|rbl|au bank|au small finance|paytm|phonepe|gpay|amazon pay)\b',
     caseSensitive: false,
   );
+  static final _creditCardWords = [
+    'credit card', 'card ending', 'card no. xx', 'card no xx', 'card xx',
+    'avl limit', 'available limit', 'credit limit', 'card statement',
+    'minimum amount due', 'total amount due', 'card outstanding',
+  ];
+  static final _debitCardWords = ['debit card'];
+
+  /// Normalize a raw bank match to the short code used in account names, e.g.
+  /// "State Bank of India" -> "sbi".
+  static String _normalizeBank(String raw) {
+    final r = raw.toLowerCase();
+    if (r.contains('state bank') || r.contains('sbi')) return 'sbi';
+    if (r.contains('punjab national') || r == 'pnb') return 'pnb';
+    if (r.contains('bank of baroda') || r == 'bob') return 'bob';
+    return r;
+  }
 
   static bool looksLikeTransaction(String body) {
     final b = body.toLowerCase();
+    if (_promoWords.any(b.contains)) return false;
     final hasMoney = _amount.hasMatch(body);
     final hasAction = [..._debit, ..._credit].any(b.contains);
     return hasMoney && hasAction;
@@ -60,8 +96,36 @@ class SmsParser {
     final merchant = (_merchantRe.firstMatch(body)?.group(1) ?? '')
         .trim()
         .replaceAll(RegExp(r'[.,]+$'), '');
-    final bank = _bankRe.firstMatch(body)?.group(0)?.toUpperCase();
+    final bankMatch = _bankRe.firstMatch(body)?.group(0);
+    final bank = bankMatch != null ? _normalizeBank(bankMatch) : null;
+    final isCreditCard = _creditCardWords.any(b.contains) && !_debitCardWords.any(b.contains);
 
-    return ParsedSms(amount, type, merchant.length > 40 ? merchant.substring(0, 40) : merchant, ref, bank);
+    return ParsedSms(
+      amount,
+      type,
+      merchant.length > 40 ? merchant.substring(0, 40) : merchant,
+      ref,
+      bank,
+      isCreditCard: isCreditCard,
+    );
+  }
+
+  /// Pick the account a parsed SMS should post to: match the bank name in the
+  /// SMS against account names, preferring a credit-card account when the SMS
+  /// is about a card and a non-card account otherwise (so e.g. an SBI Card
+  /// charge doesn't land in the SBI savings account just because both
+  /// accounts have "SBI" in their name). Returns 0 (unassigned) if no match.
+  static int matchAccountId(List<Account> accounts, ParsedSms parsed) {
+    final hint = parsed.bankHint?.toLowerCase();
+    if (hint == null || hint.isEmpty) return 0;
+    final candidates = accounts.where((a) {
+      final n = a.name.toLowerCase();
+      return n.contains(hint) || hint.contains(n);
+    }).toList();
+    if (candidates.isEmpty) return 0;
+    final preferred = parsed.isCreditCard
+        ? candidates.where((a) => a.type == AccountType.creditCard).firstOrNull
+        : candidates.where((a) => a.type != AccountType.creditCard).firstOrNull;
+    return (preferred ?? candidates.first).id ?? 0;
   }
 }

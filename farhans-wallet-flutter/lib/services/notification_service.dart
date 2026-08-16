@@ -50,10 +50,23 @@ class NotificationService {
           priority: Priority.high,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  /// Exact alarms survive Doze/App Standby so the reminder actually fires at
+  /// the chosen time instead of being silently deferred by hours; fall back
+  /// to inexact if the OS won't grant the exact-alarm permission.
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    try {
+      final granted = await android?.requestExactAlarmsPermission();
+      if (granted == true) return AndroidScheduleMode.exactAllowWhileIdle;
+    } catch (_) {}
+    return AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   Future<void> cancelReminder() async {
