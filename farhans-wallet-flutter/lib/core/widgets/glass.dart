@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 
@@ -37,13 +36,13 @@ class _PressableState extends State<Pressable> {
   }
 }
 
-/// A frosted-glass surface: real backdrop blur, translucent fill, hairline
-/// border and a soft top highlight for depth.
+/// A translucent surface: flat fill (no backdrop blur — blur is expensive to
+/// composite and was causing jank on lower-end devices), hairline border and
+/// a soft drop shadow for depth.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double radius;
-  final double blur;
   final VoidCallback? onTap;
   final bool strong;
   final Gradient? gradient;
@@ -55,7 +54,6 @@ class GlassCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(Insets.md),
     this.radius = Corners.lg,
-    this.blur = Blurs.card,
     this.onTap,
     this.strong = false,
     this.gradient,
@@ -66,21 +64,15 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final content = ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: gradient == null ? (strong ? t.glassFillStrong : t.glassFill) : null,
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(radius),
-            border: border ?? Border.all(color: t.glassBorder, width: 1),
-          ),
-          child: child,
-        ),
+    final content = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: gradient == null ? (strong ? t.glassFillStrong : t.glassFill) : null,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(radius),
+        border: border ?? Border.all(color: t.glassBorder, width: 1),
       ),
+      child: child,
     );
 
     final shadowed = DecoratedBox(

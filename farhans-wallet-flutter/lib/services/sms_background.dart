@@ -33,11 +33,13 @@ Future<void> smsBackgroundHandler(SmsMessage message) async {
 
   final accounts = await repo.accounts();
   final accountId = SmsParser.matchAccountId(accounts, parsed); // 0 = unassigned
+  final learnedCategory = await repo.lastCategoryForMerchant(parsed.merchant, parsed.type);
 
   await repo.upsertTxn(Txn(
     type: parsed.type,
     amount: parsed.amount,
     accountId: accountId,
+    categoryId: learnedCategory,
     merchant: parsed.merchant,
     dateTime: date,
     source: TxnSource.sms,

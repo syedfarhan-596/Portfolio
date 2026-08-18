@@ -56,10 +56,15 @@ class SmsParser {
   );
   static final _creditCardWords = [
     'credit card', 'card ending', 'card no. xx', 'card no xx', 'card xx',
-    'avl limit', 'available limit', 'credit limit', 'card statement',
-    'minimum amount due', 'total amount due', 'card outstanding',
+    'avl limit', 'avl lmt', 'available limit', 'available credit limit',
+    'credit limit', 'card statement', 'minimum amount due', 'min amount due',
+    'total amount due', 'card outstanding', 'cardmember', 'card member',
   ];
   static final _debitCardWords = ['debit card'];
+  // Very common across virtually every bank's card-transaction template,
+  // regardless of exact wording: the word "card" near a masked/partial
+  // card number, e.g. "card ending 1234", "Card XX1234", "card no. 1234".
+  static final _cardNumberNearWord = RegExp(r'\bcard\b.{0,20}?\d{3,4}\b', caseSensitive: false);
 
   /// Normalize a raw bank match to the short code used in account names, e.g.
   /// "State Bank of India" -> "sbi".
@@ -98,7 +103,8 @@ class SmsParser {
         .replaceAll(RegExp(r'[.,]+$'), '');
     final bankMatch = _bankRe.firstMatch(body)?.group(0);
     final bank = bankMatch != null ? _normalizeBank(bankMatch) : null;
-    final isCreditCard = _creditCardWords.any(b.contains) && !_debitCardWords.any(b.contains);
+    final isCreditCard = (_creditCardWords.any(b.contains) || _cardNumberNearWord.hasMatch(b)) &&
+        !_debitCardWords.any(b.contains);
 
     return ParsedSms(
       amount,

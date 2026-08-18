@@ -424,10 +424,12 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     if (parsed.ref != null && await _repo.upiRefExists(parsed.ref!)) return;
 
     final accounts = state.value?.accounts ?? const <Account>[];
+    final learnedCategory = await _repo.lastCategoryForMerchant(parsed.merchant, parsed.type);
     await _repo.upsertTxn(Txn(
       type: parsed.type,
       amount: parsed.amount,
       accountId: SmsParser.matchAccountId(accounts, parsed), // 0 = unassigned
+      categoryId: learnedCategory,
       merchant: parsed.merchant,
       dateTime: r.date,
       source: TxnSource.sms,

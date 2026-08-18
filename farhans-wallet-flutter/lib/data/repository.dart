@@ -118,6 +118,25 @@ class Repository {
     return rows.first['id'] as int;
   }
 
+  /// The category most recently used for a transaction at this merchant, if
+  /// any — lets newly-captured SMS transactions be auto-categorized the way
+  /// the user categorized this merchant before, instead of always landing
+  /// uncategorized.
+  Future<int?> lastCategoryForMerchant(String merchant, TxnType type) async {
+    if (merchant.trim().isEmpty) return null;
+    final db = await _db;
+    final rows = await db.query(
+      'transactions',
+      columns: ['categoryId'],
+      where: 'LOWER(merchant) = ? AND type = ? AND categoryId IS NOT NULL',
+      whereArgs: [merchant.trim().toLowerCase(), type.name],
+      orderBy: 'dateTime DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['categoryId'] as int?;
+  }
+
   Future<bool> upiRefExists(String ref) async {
     final db = await _db;
     final rows = await db.query('transactions',
