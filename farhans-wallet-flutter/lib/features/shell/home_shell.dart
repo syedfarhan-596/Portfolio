@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -145,30 +144,24 @@ class _GlassNavBar extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(
           Insets.lg, 0, Insets.lg, Insets.md + MediaQuery.of(context).padding.bottom),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(Corners.xl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: Blurs.nav, sigmaY: Blurs.nav),
-          child: Container(
-            height: 66,
-            decoration: BoxDecoration(
-              color: t.glassFillStrong,
-              borderRadius: BorderRadius.circular(Corners.xl),
-              border: Border.all(color: t.glassBorder),
-              boxShadow: t.softShadow,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                for (int i = 0; i < items.length; i++)
-                  _NavButton(
-                    item: items[i],
-                    selected: i == index,
-                    onTap: () => onTap(i),
-                  ),
-              ],
-            ),
-          ),
+      child: Container(
+        height: 66,
+        decoration: BoxDecoration(
+          color: t.glassFillStrong,
+          borderRadius: BorderRadius.circular(Corners.xl),
+          border: Border.all(color: t.glassBorder),
+          boxShadow: t.softShadow,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            for (int i = 0; i < items.length; i++)
+              _NavButton(
+                item: items[i],
+                selected: i == index,
+                onTap: () => onTap(i),
+              ),
+          ],
         ),
       ),
     );
