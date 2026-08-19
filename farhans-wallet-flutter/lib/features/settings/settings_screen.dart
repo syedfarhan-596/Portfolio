@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_info.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/bits.dart';
 import '../../core/widgets/buttons.dart';
@@ -190,6 +191,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: Insets.md),
+          Center(
+            child: Text(appVersionLabel,
+                style: context.text.bodySmall?.copyWith(color: t.textLow)),
           ),
         ],
       ),

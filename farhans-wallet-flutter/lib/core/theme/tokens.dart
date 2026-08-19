@@ -112,8 +112,12 @@ class AppTokens extends ThemeExtension<AppTokens> {
     blobA: Color(0xFF6C5CE7),
     blobB: Color(0xFF1FB6A6),
     blobC: Color(0xFFE0568B),
-    glassFill: Color(0x14FFFFFF),
-    glassFillStrong: Color(0x24FFFFFF),
+    // Solid surface colors, not translucent — these used to be a thin white
+    // wash meant to be diffused by a backdrop blur. With the blur gone (it
+    // was costing real frame time on lower-end devices), a near-transparent
+    // fill just let the background blobs show through and fight with text.
+    glassFill: Color(0xFF201F30),
+    glassFillStrong: Color(0xFF272638),
     glassBorder: Color(0x26FFFFFF),
     glassHighlight: Color(0x33FFFFFF),
     textHigh: Color(0xFFF3F3FA),
@@ -139,8 +143,9 @@ class AppTokens extends ThemeExtension<AppTokens> {
     blobA: Color(0xFF8B7BFF),
     blobB: Color(0xFF5BD6C2),
     blobC: Color(0xFFFF9BC0),
-    glassFill: Color(0xCCFFFFFF),
-    glassFillStrong: Color(0xF2FFFFFF),
+    // Solid, not translucent — same reasoning as the dark palette above.
+    glassFill: Color(0xFFFFFFFF),
+    glassFillStrong: Color(0xFFFFFFFF),
     glassBorder: Color(0x33FFFFFF),
     glassHighlight: Color(0x80FFFFFF),
     textHigh: Color(0xFF16161F),

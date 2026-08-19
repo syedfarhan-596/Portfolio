@@ -13,6 +13,12 @@ class ParsedSms {
 
 /// Heuristic parser for Indian bank / UPI alert SMS. Mirrors the original app.
 class SmsParser {
+  // Bare 'credit' (for "your account is credit-ed") and bare 'debit' (for
+  // "using your debit card") both risk matching a card's own brand name
+  // instead of an actual transaction verb — "SBI Credit Card" contains
+  // "credit" with no money having moved either way. _actionWords() strips
+  // "credit card" / "debit card" out of the text before these lists are
+  // checked, so the card's own name can never be mistaken for a direction.
   static final _debit = [
     'debited', 'debit', 'spent', 'paid', 'sent', 'withdrawn',
     'purchase', 'deducted', 'txn of', 'payment of'
@@ -20,8 +26,12 @@ class SmsParser {
   static final _credit = [
     'credited', 'credit', 'received', 'deposited', 'added', 'refund'
   ];
+  static String _actionWords(String lower) =>
+      lower.replaceAll('credit card', ' ').replaceAll('debit card', ' ');
 
-  // Bank/marketing SMS that mention money but are not real transaction alerts.
+  // Bank SMS that mention money but are not real transaction alerts:
+  // marketing/promo copy, and card statement/due-date notices (which
+  // mention "credit card" and an amount but nothing has actually moved).
   static final _promoWords = [
     'cashback up to', 'up to ₹', 'upto ₹', '% off', '% cashback', 'flat off', 'flat ₹',
     'mega sale', 'sale is live', 'offer valid', 'limited period', 'limited time',
@@ -36,6 +46,10 @@ class SmsParser {
     'welcome offer', 'festive offer', 'bumper offer', 'win rewards', 'win prizes',
     'reply stop', 'know more', 'call now', 'visit nearest branch to avail',
     'eligible for a loan', 'increase your limit', 'activate now', 'upgrade now',
+    'statement generated', 'statement has been generated', 'statement is generated',
+    'bill generated', 'e-statement', 'estatement', 'payment due on', 'due date is',
+    'kindly pay', 'please pay by', 'is due for payment', 'has been dispatched',
+    'will expire on', 'about to expire',
   ];
 
   static final _amount = RegExp(
@@ -80,22 +94,23 @@ class SmsParser {
     final b = body.toLowerCase();
     if (_promoWords.any(b.contains)) return false;
     final hasMoney = _amount.hasMatch(body);
-    final hasAction = [..._debit, ..._credit].any(b.contains);
+    final hasAction = [..._debit, ..._credit].any(_actionWords(b).contains);
     return hasMoney && hasAction;
   }
 
   static ParsedSms? parse(String body) {
     if (!looksLikeTransaction(body)) return null;
     final b = body.toLowerCase();
+    final action = _actionWords(b);
     final m = _amount.firstMatch(body);
     if (m == null) return null;
     final amount = double.tryParse(m.group(1)!.replaceAll(',', ''));
     if (amount == null || amount <= 0) return null;
 
-    final isCredit = _credit.any(b.contains) && !_debit.any(b.contains);
+    final isCredit = _credit.any(action.contains) && !_debit.any(action.contains);
     final type = isCredit
         ? TxnType.income
-        : (_debit.any(b.contains) ? TxnType.expense : TxnType.income);
+        : (_debit.any(action.contains) ? TxnType.expense : TxnType.income);
 
     final ref = _refRe.firstMatch(body)?.group(1);
     final merchant = (_merchantRe.firstMatch(body)?.group(1) ?? '')
