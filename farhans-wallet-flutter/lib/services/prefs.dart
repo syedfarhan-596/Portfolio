@@ -19,9 +19,11 @@ class Prefs {
   bool get smsCapture => _sp.getBool('sms_capture') ?? true;
   set smsCapture(bool v) => _sp.setBool('sms_capture', v);
 
-  /// Whether we've already asked for SMS/notification permission once.
-  bool get smsPermAsked => _sp.getBool('sms_perm_asked') ?? false;
-  set smsPermAsked(bool v) => _sp.setBool('sms_perm_asked', v);
+  /// Result of the last SMS permission request — lets Settings show a clear
+  /// warning instead of capture silently doing nothing when permission was
+  /// denied (or auto-revoked by Android for being unused).
+  bool get smsPermGranted => _sp.getBool('sms_perm_granted') ?? false;
+  set smsPermGranted(bool v) => _sp.setBool('sms_perm_granted', v);
 
   /// Epoch millis of the newest SMS already captured. Seeded to install time so
   /// pre-existing (old) messages are never imported.

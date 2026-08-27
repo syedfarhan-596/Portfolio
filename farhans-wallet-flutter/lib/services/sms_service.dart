@@ -27,7 +27,10 @@ class SmsService {
         .toList();
   }
 
-  void listenIncoming(
+  /// Returns whether the listener actually registered, so the caller can
+  /// retry later (e.g. on next resume) instead of wrongly assuming it's
+  /// listening when permission wasn't actually granted.
+  bool listenIncoming(
     void Function(SmsRecord) onMessage, {
     MessageHandler? onBackground,
   }) {
@@ -42,8 +45,10 @@ class SmsService {
         onBackgroundMessage: onBackground,
         listenInBackground: onBackground != null,
       );
+      return true;
     } catch (_) {
       // No SMS permission yet — listening will be retried after it's granted.
+      return false;
     }
   }
 }

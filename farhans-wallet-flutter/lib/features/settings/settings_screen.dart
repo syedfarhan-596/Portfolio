@@ -101,11 +101,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: (v) => setState(() => prefs.smsCapture = v),
                   ),
                 ),
+                if (prefs.smsCapture && !prefs.smsPermGranted) ...[
+                  const SizedBox(height: Insets.sm),
+                  Container(
+                    padding: const EdgeInsets.all(Insets.sm),
+                    decoration: BoxDecoration(
+                      color: t.danger.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(Corners.sm),
+                      border: Border.all(color: t.danger.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: t.danger, size: 20),
+                        const SizedBox(width: Insets.xs),
+                        Expanded(
+                          child: Text(
+                            'SMS permission isn\'t granted, so nothing is being captured. '
+                            'Tap "Check for new SMS now" below to re-request it, or enable it '
+                            'manually in Android Settings → Apps → Pocket Flow → Permissions.',
+                            style: context.text.bodySmall?.copyWith(color: t.danger),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Insets.sm),
                 Pressable(
                   onTap: () async {
                     final sms = ref.read(smsServiceProvider);
                     final granted = await sms.requestPermission();
+                    setState(() => prefs.smsPermGranted = granted);
                     if (!granted) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

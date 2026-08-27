@@ -374,23 +374,25 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
   // ── SMS capture ──
   bool _listening = false;
 
-  /// On first launch, ask once for SMS + notification permission. Old messages
-  /// are excluded because [Prefs.lastSmsScan] is seeded to install time in main().
+  /// Make sure SMS + notification permission is actually granted, every time
+  /// the app opens — not just once. Requesting again when permission is
+  /// already granted is a no-op (the OS returns immediately, no dialog), so
+  /// this costs nothing for the common case, but it means a permission that
+  /// was ever denied (or auto-revoked by Android for being unused) gets a
+  /// real chance to be granted instead of silently staying broken forever.
+  /// Old messages are excluded regardless, because [Prefs.lastSmsScan] is
+  /// seeded to install time in main().
   Future<void> ensureSmsSetup() async {
     if (!_prefs.smsCapture) return;
-    if (!_prefs.smsPermAsked) {
-      _prefs.smsPermAsked = true;
-      await ref.read(smsServiceProvider).requestPermission();
-      await ref.read(notificationProvider).requestPermission();
-    }
+    _prefs.smsPermGranted = await ref.read(smsServiceProvider).requestPermission();
+    await ref.read(notificationProvider).requestPermission();
   }
 
   /// Start listening for incoming SMS — in real time while running, and via a
   /// background isolate (smsBackgroundHandler) when the app is closed/killed.
   void startSmsListener() {
     if (_listening || !_prefs.smsCapture) return;
-    _listening = true;
-    ref.read(smsServiceProvider).listenIncoming(
+    _listening = ref.read(smsServiceProvider).listenIncoming(
           (r) => _captureSms(r, notify: true),
           onBackground: smsBackgroundHandler,
         );
@@ -404,6 +406,10 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     try {
       records = await ref.read(smsServiceProvider).readInbox();
     } catch (_) {
+      // Reading the inbox only fails like this when SMS permission isn't
+      // actually granted — record that so Settings can surface it instead
+      // of capture just silently doing nothing.
+      _prefs.smsPermGranted = false;
       return;
     }
     final since = _prefs.lastSmsScan;
