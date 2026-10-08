@@ -491,3 +491,90 @@ class PeopleSummary {
     required this.debts,
   });
 }
+
+/// Learned memory for one SMS "template" (a normalized signature shared by
+/// every message with the same wording but different amounts/dates/refs).
+/// Lets SMS capture get more confident over time instead of re-guessing the
+/// same way, right or wrong, forever.
+class SmsPattern {
+  final int? id;
+  final String signature;
+  final int timesSeen;
+
+  /// How many times in a row the account/category/type the user ended up
+  /// saving matched [lastAccountId]/[lastCategoryId]/[lastType]. Resets to 1
+  /// whenever they save something different. Crossing [autoConfirmStreak]
+  /// flips [autoConfirm] on.
+  final int consistentStreak;
+
+  /// How many times this pattern was dismissed/deleted as not a real
+  /// transaction. Crossing [autoRejectCount] flips [alwaysIgnore] on.
+  final int timesRejected;
+
+  final int? lastAccountId;
+  final int? lastCategoryId;
+  final TxnType? lastType;
+  final bool autoConfirm;
+  final bool alwaysIgnore;
+  final int firstSeenAt;
+  final int lastSeenAt;
+
+  static const int autoConfirmStreak = 3;
+  static const int autoRejectCount = 2;
+
+  const SmsPattern({
+    this.id,
+    required this.signature,
+    required this.timesSeen,
+    required this.consistentStreak,
+    required this.timesRejected,
+    this.lastAccountId,
+    this.lastCategoryId,
+    this.lastType,
+    required this.autoConfirm,
+    required this.alwaysIgnore,
+    required this.firstSeenAt,
+    required this.lastSeenAt,
+  });
+
+  /// Collapses a message to its template shape by blanking out every run of
+  /// digits — amounts, dates, reference numbers, masked card digits, OTPs —
+  /// so "Rs.500 spent at X on 12-10-26" and "Rs.620 spent at X on 20-10-26"
+  /// are recognized as the same pattern.
+  static String signatureOf(String body) {
+    final blanked = body.toLowerCase().replaceAll(RegExp(r'[0-9]+'), '#');
+    return blanked.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  Map<String, Object?> toMap() => {
+        'id': id,
+        'signature': signature,
+        'timesSeen': timesSeen,
+        'consistentStreak': consistentStreak,
+        'timesRejected': timesRejected,
+        'lastAccountId': lastAccountId,
+        'lastCategoryId': lastCategoryId,
+        'lastType': lastType?.name,
+        'autoConfirm': autoConfirm ? 1 : 0,
+        'alwaysIgnore': alwaysIgnore ? 1 : 0,
+        'firstSeenAt': firstSeenAt,
+        'lastSeenAt': lastSeenAt,
+      };
+
+  factory SmsPattern.fromMap(Map<String, Object?> m) => SmsPattern(
+        id: m['id'] as int?,
+        signature: m['signature'] as String,
+        timesSeen: m['timesSeen'] as int? ?? 0,
+        consistentStreak: m['consistentStreak'] as int? ?? 0,
+        timesRejected: m['timesRejected'] as int? ?? 0,
+        lastAccountId: m['lastAccountId'] as int?,
+        lastCategoryId: m['lastCategoryId'] as int?,
+        lastType: (m['lastType'] as String?) == null
+            ? null
+            : _enumFromName(TxnType.values, m['lastType'] as String, TxnType.expense),
+        autoConfirm: (m['autoConfirm'] as int? ?? 0) == 1,
+        alwaysIgnore: (m['alwaysIgnore'] as int? ?? 0) == 1,
+        firstSeenAt: m['firstSeenAt'] as int,
+        lastSeenAt: m['lastSeenAt'] as int,
+      );
+}

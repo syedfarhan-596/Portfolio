@@ -155,9 +155,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: Insets.xs),
                 Text(
-                  'New SMS are added automatically (debit or credit). The account is set from '
-                  'the bank name in the SMS (e.g. name an account “Kotak”); otherwise it’s left '
-                  'unset for you to pick. Only messages received after installing are captured.',
+                  'New message templates are added as pending for you to confirm or correct '
+                  'once; after a few consistent confirmations, that template auto-confirms on '
+                  'its own going forward. Dismissing a message enough times teaches the app to '
+                  'ignore it outright (useful for promotional texts that slip through). Only '
+                  'messages received after installing are captured.',
                   style: context.text.bodySmall?.copyWith(color: t.textMid),
                 ),
               ],

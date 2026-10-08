@@ -211,12 +211,35 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     await _refresh();
   }
 
+  /// Save an edited/confirmed transaction. When it was a pending SMS capture,
+  /// this also teaches its pattern what the right outcome was — whether that
+  /// means "the guess was right" or "it should always be this instead" — so
+  /// future messages like it get more confident over time.
+  Future<void> confirmPendingTxn(Txn original, Txn edited) async {
+    if (original.source == TxnSource.sms && (original.rawSms ?? '').isNotEmpty) {
+      await _repo.recordPatternOutcome(
+        SmsPattern.signatureOf(original.rawSms!),
+        accountId: edited.accountId,
+        categoryId: edited.categoryId,
+        type: edited.type,
+      );
+    }
+    await _repo.upsertTxn(edited.copyWith(status: TxnStatus.confirmed));
+    await _refresh();
+  }
+
   Future<void> deleteTxn(Txn t) async {
     if (t.id != null) await _repo.deleteTxn(t.id!);
     await _refresh();
   }
 
+  /// Dismiss a pending SMS capture as not a real transaction (e.g. a
+  /// promotional message that slipped through). Teaches its pattern to be
+  /// ignored outright once this happens enough times.
   Future<void> dismissPending(Txn t) async {
+    if (t.source == TxnSource.sms && (t.rawSms ?? '').isNotEmpty) {
+      await _repo.recordPatternRejection(SmsPattern.signatureOf(t.rawSms!));
+    }
     if (t.id != null) await _repo.deleteTxn(t.id!);
     await _refresh();
   }
@@ -421,25 +444,32 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     await _refresh();
   }
 
-  /// Parse a single SMS and, if it's a bank/UPI transaction, add it directly as
-  /// a confirmed transaction (no approval) and optionally notify the user.
+  /// Parse a single SMS and, if it looks like a bank/UPI transaction, add it
+  /// — auto-confirmed if its template is one we've learned to trust, pending
+  /// your review otherwise (or skipped outright if we've learned it's noise).
   Future<void> _captureSms(SmsRecord r, {required bool notify, bool refresh = true}) async {
     if (r.date > _prefs.lastSmsScan) _prefs.lastSmsScan = r.date;
     final parsed = SmsParser.parse(r.body);
     if (parsed == null) return;
     if (parsed.ref != null && await _repo.upiRefExists(parsed.ref!)) return;
 
+    final pattern = await _repo.getOrCreatePattern(SmsPattern.signatureOf(r.body), seenAt: r.date);
+    if (pattern.alwaysIgnore) return;
+
     final accounts = state.value?.accounts ?? const <Account>[];
+    final heuristicAccountId = SmsParser.matchAccountId(accounts, parsed);
     final learnedCategory = await _repo.lastCategoryForMerchant(parsed.merchant, parsed.type);
+    final trusted = pattern.autoConfirm;
+
     await _repo.upsertTxn(Txn(
-      type: parsed.type,
+      type: trusted ? (pattern.lastType ?? parsed.type) : parsed.type,
       amount: parsed.amount,
-      accountId: SmsParser.matchAccountId(accounts, parsed), // 0 = unassigned
-      categoryId: learnedCategory,
+      accountId: trusted ? (pattern.lastAccountId ?? heuristicAccountId) : heuristicAccountId,
+      categoryId: trusted ? (pattern.lastCategoryId ?? learnedCategory) : learnedCategory,
       merchant: parsed.merchant,
       dateTime: r.date,
       source: TxnSource.sms,
-      status: TxnStatus.confirmed,
+      status: trusted ? TxnStatus.confirmed : TxnStatus.pending,
       upiRef: parsed.ref,
       rawSms: r.body,
     ));
@@ -447,9 +477,10 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
     if (notify) {
       final credited = parsed.type == TxnType.income;
       final where = parsed.merchant.isNotEmpty ? ' · ${parsed.merchant}' : '';
+      final amountText = '${credited ? '+' : '-'}₹${parsed.amount.toStringAsFixed(2)}$where';
       await ref.read(notificationProvider).showTxnDetected(
             credited ? 'Money received' : 'Money spent',
-            '${credited ? '+' : '-'}₹${parsed.amount.toStringAsFixed(2)}$where — tap to set category/account',
+            trusted ? amountText : '$amountText — tap to confirm & categorize',
           );
     }
     if (refresh) await _refresh();

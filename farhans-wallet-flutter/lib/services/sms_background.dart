@@ -31,19 +31,23 @@ Future<void> smsBackgroundHandler(SmsMessage message) async {
   final repo = Repository(AppDatabase.instance);
   if (parsed.ref != null && await repo.upiRefExists(parsed.ref!)) return;
 
+  final pattern = await repo.getOrCreatePattern(SmsPattern.signatureOf(body), seenAt: date);
+  if (pattern.alwaysIgnore) return;
+
   final accounts = await repo.accounts();
-  final accountId = SmsParser.matchAccountId(accounts, parsed); // 0 = unassigned
+  final heuristicAccountId = SmsParser.matchAccountId(accounts, parsed); // 0 = unassigned
   final learnedCategory = await repo.lastCategoryForMerchant(parsed.merchant, parsed.type);
+  final trusted = pattern.autoConfirm;
 
   await repo.upsertTxn(Txn(
-    type: parsed.type,
+    type: trusted ? (pattern.lastType ?? parsed.type) : parsed.type,
     amount: parsed.amount,
-    accountId: accountId,
-    categoryId: learnedCategory,
+    accountId: trusted ? (pattern.lastAccountId ?? heuristicAccountId) : heuristicAccountId,
+    categoryId: trusted ? (pattern.lastCategoryId ?? learnedCategory) : learnedCategory,
     merchant: parsed.merchant,
     dateTime: date,
     source: TxnSource.sms,
-    status: TxnStatus.confirmed,
+    status: trusted ? TxnStatus.confirmed : TxnStatus.pending,
     upiRef: parsed.ref,
     rawSms: body,
   ));
@@ -52,8 +56,9 @@ Future<void> smsBackgroundHandler(SmsMessage message) async {
   await notif.init();
   final credited = parsed.type == TxnType.income;
   final where = parsed.merchant.isNotEmpty ? ' · ${parsed.merchant}' : '';
+  final amountText = '${credited ? '+' : '-'}₹${parsed.amount.toStringAsFixed(2)}$where';
   await notif.showTxnDetected(
     credited ? 'Money received' : 'Money spent',
-    '${credited ? '+' : '-'}₹${parsed.amount.toStringAsFixed(2)}$where — tap to set category/account',
+    trusted ? amountText : '$amountText — tap to confirm & categorize',
   );
 }

@@ -144,6 +144,109 @@ class Repository {
     return rows.isNotEmpty;
   }
 
+  // ───────────────────────── SMS pattern learning ─────────────────────────
+  // Not included in backup/restore: it's a local learning cache, not
+  // user-authored data, and safely rebuilds itself from new confirmations.
+
+  /// Looks up the learned record for this message template, creating one
+  /// (and counting this sighting) if it's never been seen before.
+  Future<SmsPattern> getOrCreatePattern(String signature, {required int seenAt}) async {
+    final db = await _db;
+    final rows =
+        await db.query('sms_patterns', where: 'signature = ?', whereArgs: [signature], limit: 1);
+    if (rows.isEmpty) {
+      final id = await db.insert('sms_patterns', {
+        'signature': signature,
+        'timesSeen': 1,
+        'consistentStreak': 0,
+        'timesRejected': 0,
+        'lastAccountId': null,
+        'lastCategoryId': null,
+        'lastType': null,
+        'autoConfirm': 0,
+        'alwaysIgnore': 0,
+        'firstSeenAt': seenAt,
+        'lastSeenAt': seenAt,
+      });
+      return SmsPattern(
+        id: id,
+        signature: signature,
+        timesSeen: 1,
+        consistentStreak: 0,
+        timesRejected: 0,
+        autoConfirm: false,
+        alwaysIgnore: false,
+        firstSeenAt: seenAt,
+        lastSeenAt: seenAt,
+      );
+    }
+    final existing = SmsPattern.fromMap(rows.first);
+    await db.update(
+      'sms_patterns',
+      {'timesSeen': existing.timesSeen + 1, 'lastSeenAt': seenAt},
+      where: 'signature = ?',
+      whereArgs: [signature],
+    );
+    return existing;
+  }
+
+  /// Records what the user actually saved for a message matching this
+  /// pattern. A streak of identical outcomes (whether that's confirming the
+  /// guess as-is, or correcting it to the same thing every time) is what
+  /// builds trust — not a single lucky confirmation.
+  Future<void> recordPatternOutcome(
+    String signature, {
+    required int accountId,
+    int? categoryId,
+    required TxnType type,
+  }) async {
+    final db = await _db;
+    final rows =
+        await db.query('sms_patterns', where: 'signature = ?', whereArgs: [signature], limit: 1);
+    if (rows.isEmpty) return;
+    final row = rows.first;
+    final sameAsLast = row['lastAccountId'] == accountId &&
+        row['lastCategoryId'] == categoryId &&
+        row['lastType'] == type.name;
+    final newStreak = sameAsLast ? (row['consistentStreak'] as int? ?? 0) + 1 : 1;
+    await db.update(
+      'sms_patterns',
+      {
+        'lastAccountId': accountId,
+        'lastCategoryId': categoryId,
+        'lastType': type.name,
+        'consistentStreak': newStreak,
+        'autoConfirm': newStreak >= SmsPattern.autoConfirmStreak ? 1 : 0,
+        'timesRejected': 0,
+        'alwaysIgnore': 0,
+      },
+      where: 'signature = ?',
+      whereArgs: [signature],
+    );
+  }
+
+  /// Records that a message matching this pattern was dismissed/deleted as
+  /// not a real transaction. Enough of these and it's ignored outright —
+  /// personalizing the promo/noise filter to the user's actual senders.
+  Future<void> recordPatternRejection(String signature) async {
+    final db = await _db;
+    final rows = await db.query('sms_patterns',
+        columns: ['timesRejected'], where: 'signature = ?', whereArgs: [signature], limit: 1);
+    if (rows.isEmpty) return;
+    final newCount = (rows.first['timesRejected'] as int? ?? 0) + 1;
+    await db.update(
+      'sms_patterns',
+      {
+        'timesRejected': newCount,
+        'alwaysIgnore': newCount >= SmsPattern.autoRejectCount ? 1 : 0,
+        'autoConfirm': 0,
+        'consistentStreak': 0,
+      },
+      where: 'signature = ?',
+      whereArgs: [signature],
+    );
+  }
+
   // ───────────────────────── Backup / restore ─────────────────────────
   Future<Map<String, dynamic>> exportAll() async {
     final db = await _db;

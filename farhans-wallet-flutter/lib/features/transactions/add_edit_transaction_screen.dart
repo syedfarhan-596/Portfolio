@@ -114,7 +114,12 @@ class _State extends ConsumerState<AddEditTransactionScreen> {
       contactKey: _contactKey,
     );
     final notifier = ref.read(walletProvider.notifier);
-    notifier.saveTxn(txn);
+    if (widget.txn != null && widget.txn!.status == TxnStatus.pending) {
+      // Confirming/correcting a pending SMS capture — teach its pattern.
+      notifier.confirmPendingTxn(widget.txn!, txn);
+    } else {
+      notifier.saveTxn(txn);
+    }
 
     if (_split && _type == TxnType.expense) {
       final owe = double.tryParse(_splitAmount.text) ?? 0;
@@ -151,7 +156,14 @@ class _State extends ConsumerState<AddEditTransactionScreen> {
           ? GlassIconButton(
               icon: Icons.delete_outline_rounded,
               onPressed: () {
-                ref.read(walletProvider.notifier).deleteTxn(widget.txn!);
+                final notifier = ref.read(walletProvider.notifier);
+                if (widget.txn!.status == TxnStatus.pending) {
+                  // Deleting a still-pending SMS capture is a rejection, same
+                  // as dismissing it from the dashboard — teach its pattern.
+                  notifier.dismissPending(widget.txn!);
+                } else {
+                  notifier.deleteTxn(widget.txn!);
+                }
                 Navigator.pop(context);
               },
             )

@@ -31,7 +31,7 @@ class AppDatabase {
     final path = p.join(dir, 'farhans_wallet.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, v) async {
         await _createSchema(db);
@@ -49,6 +49,9 @@ class AppDatabase {
               ORDER BY t.id LIMIT 1
             )
           ''');
+        }
+        if (oldV < 3) {
+          await db.execute(_smsPatternsSchema);
         }
       },
     );
@@ -128,7 +131,29 @@ class AppDatabase {
         note TEXT NOT NULL DEFAULT '',
         sold INTEGER NOT NULL DEFAULT 0
       )''');
+    await db.execute(_smsPatternsSchema);
   }
+
+  /// Per-template memory for SMS capture: groups messages by a normalized
+  /// signature (amount/date/reference digits blanked out) so the app can
+  /// learn, per template, whether it's a real transaction and which
+  /// account/category it belongs to — see Repository's pattern methods.
+  static const String _smsPatternsSchema = '''
+    CREATE TABLE IF NOT EXISTS sms_patterns(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      signature TEXT NOT NULL UNIQUE,
+      timesSeen INTEGER NOT NULL DEFAULT 0,
+      consistentStreak INTEGER NOT NULL DEFAULT 0,
+      timesRejected INTEGER NOT NULL DEFAULT 0,
+      lastAccountId INTEGER,
+      lastCategoryId INTEGER,
+      lastType TEXT,
+      autoConfirm INTEGER NOT NULL DEFAULT 0,
+      alwaysIgnore INTEGER NOT NULL DEFAULT 0,
+      firstSeenAt INTEGER NOT NULL,
+      lastSeenAt INTEGER NOT NULL
+    )
+  ''';
 
   Future<void> _seed(Database db) async {
     final accounts = <Account>[
