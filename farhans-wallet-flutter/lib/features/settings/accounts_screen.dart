@@ -105,6 +105,8 @@ class _AccountEditorState extends State<AccountEditor> {
   late String _color = widget.account?.colorHex ?? AppIcons.palette.first;
   late String _icon = widget.account?.icon ?? 'account_balance';
   late bool _includeInTotal = widget.account?.includeInTotal ?? true;
+  late final TextEditingController _dueDay =
+      TextEditingController(text: widget.account?.dueDay?.toString() ?? '');
 
   String _trim(double d) => d == d.roundToDouble() ? d.toInt().toString() : d.toString();
 
@@ -112,6 +114,7 @@ class _AccountEditorState extends State<AccountEditor> {
   void dispose() {
     _name.dispose();
     _opening.dispose();
+    _dueDay.dispose();
     super.dispose();
   }
 
@@ -145,6 +148,19 @@ class _AccountEditorState extends State<AccountEditor> {
           controller: _opening,
           amount: true,
         ),
+        if (_type == AccountType.creditCard) ...[
+          const SizedBox(height: Insets.sm),
+          AppTextField(
+            label: 'Bill due day of month (optional)',
+            controller: _dueDay,
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: Insets.xs),
+          Text(
+            "You'll get a reminder 3 days before this date each month.",
+            style: context.text.bodySmall?.copyWith(color: t.textMid),
+          ),
+        ],
         const SizedBox(height: Insets.md),
         Text('Color', style: context.text.labelMedium),
         const SizedBox(height: Insets.xs),
@@ -191,14 +207,20 @@ class _AccountEditorState extends State<AccountEditor> {
                 onPressed: () {
                   if (_name.text.trim().isEmpty) return;
                   final base = widget.account ?? Account(name: _name.text, type: _type);
-                  widget.ref.read(walletProvider.notifier).saveAccount(base.copyWith(
+                  final parsedDueDay = int.tryParse(_dueDay.text);
+                  final dueDay = _type == AccountType.creditCard && parsedDueDay != null
+                      ? parsedDueDay.clamp(1, 31).toInt()
+                      : null;
+                  widget.ref.read(walletProvider.notifier).saveAccount(base
+                      .copyWith(
                         name: _name.text.trim(),
                         type: _type,
                         openingBalance: double.tryParse(_opening.text) ?? 0,
                         colorHex: _color,
                         icon: _icon,
                         includeInTotal: _includeInTotal,
-                      ));
+                      )
+                      .withDueDay(dueDay));
                   Navigator.pop(context);
                 },
               ),

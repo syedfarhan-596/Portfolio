@@ -9,8 +9,14 @@ import '../../core/widgets/detail_scaffold.dart';
 import '../../core/widgets/fields.dart';
 import '../../core/widgets/glass.dart';
 import '../../state/wallet_state.dart';
+import '../budgets/budgets_screen.dart';
+import '../goals/savings_goals_screen.dart';
+import '../insights/subscriptions_screen.dart';
+import '../lock/app_lock_screen.dart';
+import '../lock/pin_setup_screen.dart';
 import 'accounts_screen.dart';
 import 'categories_screen.dart';
+import 'sms_patterns_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -20,6 +26,16 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(lockServiceProvider).canUseBiometrics().then((v) {
+      if (mounted) setState(() => _biometricAvailable = v);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -30,6 +46,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(Insets.lg, Insets.xs, Insets.lg, Insets.xl),
         children: [
+          // App lock
+          GlassCard(
+            child: Column(
+              children: [
+                _row(
+                  Icons.lock_rounded,
+                  t.danger,
+                  'App lock',
+                  'Require a PIN to open Pocket Flow',
+                  Switch(
+                    value: prefs.appLockEnabled,
+                    activeThumbColor: t.accentA,
+                    onChanged: (v) async {
+                      if (v) {
+                        final ok = await Navigator.push<bool>(context,
+                            MaterialPageRoute(builder: (_) => const PinSetupScreen()));
+                        if (ok == true) setState(() {});
+                      } else {
+                        setState(() {
+                          prefs.appLockEnabled = false;
+                          ref.read(lockServiceProvider).clearPin(prefs);
+                        });
+                      }
+                    },
+                  ),
+                ),
+                if (prefs.appLockEnabled) ...[
+                  const SizedBox(height: Insets.sm),
+                  Pressable(
+                    onTap: () => Navigator.push(
+                        context, MaterialPageRoute(builder: (_) => const PinSetupScreen())),
+                    child: Row(
+                      children: [
+                        Icon(Icons.pin_rounded, color: t.accentA),
+                        const SizedBox(width: Insets.xs),
+                        Text('Change PIN',
+                            style: TextStyle(color: t.accentA, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  if (_biometricAvailable) ...[
+                    const SizedBox(height: Insets.sm),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('Also allow fingerprint/face unlock',
+                              style: context.text.bodyMedium),
+                        ),
+                        Switch(
+                          value: prefs.biometricEnabled,
+                          activeThumbColor: t.accentA,
+                          onChanged: (v) => setState(() => prefs.biometricEnabled = v),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: Insets.sm),
           // Daily reminder
           GlassCard(
             child: Column(
@@ -178,6 +255,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoriesScreen()));
           }),
           const SizedBox(height: Insets.sm),
+          _navCard(Icons.psychology_alt_rounded, t.success, 'SMS pattern memory',
+              'See what\'s trusted or ignored, and reset any of it', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SmsPatternsScreen()));
+          }),
+          const SizedBox(height: Insets.sm),
+          _navCard(Icons.autorenew_rounded, t.info, 'Subscriptions & recurring',
+              'Charges that repeat on their own, spotted automatically', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionsScreen()));
+          }),
+          const SizedBox(height: Insets.sm),
+          _navCard(Icons.pie_chart_rounded, t.warning, 'Budgets',
+              'Set a monthly cap per category and track against it', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetsScreen()));
+          }),
+          const SizedBox(height: Insets.sm),
+          _navCard(Icons.savings_rounded, t.success, 'Savings goals',
+              'Set a target and track how close you are to it', () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SavingsGoalsScreen()));
+          }),
+          const SizedBox(height: Insets.sm),
           // Theme
           GlassCard(
             child: Column(
@@ -285,6 +382,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: Insets.sm),
+          SecondaryButton(
+            label: 'Export transactions as CSV',
+            icon: Icons.table_chart_rounded,
+            onPressed: () async {
+              final rows = ref.read(walletProvider).value?.transactionCsvRows();
+              if (rows == null) return;
+              await ref.read(backupServiceProvider).exportTransactionsCsv(rows);
+            },
           ),
         ],
       ),

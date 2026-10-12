@@ -7,6 +7,7 @@ import '../../core/utils/icon_map.dart';
 import '../../core/widgets/glass.dart';
 import '../../data/models.dart';
 import '../../state/wallet_state.dart';
+import 'networth_chart.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -57,6 +58,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           padding: const EdgeInsets.fromLTRB(Insets.lg, Insets.md, Insets.lg, 120),
           children: [
             Text('Reports', style: context.text.headlineMedium),
+            const SizedBox(height: Insets.md),
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Net worth trend', style: context.text.titleMedium),
+                      Text(Money.short(data.netWorthHistory.last.netWorth),
+                          style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                  const SizedBox(height: Insets.sm),
+                  NetWorthChart(points: data.netWorthHistory),
+                ],
+              ),
+            ),
             const SizedBox(height: Insets.md),
             if (monthKeys.isNotEmpty)
               SizedBox(

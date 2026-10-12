@@ -9,6 +9,7 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/glass.dart';
 import '../../data/models.dart';
 import '../../state/wallet_state.dart';
+import '../budgets/budgets_screen.dart';
 import '../credit/pay_credit_card_screen.dart';
 import '../settings/account_detail_screen.dart';
 import '../settings/settings_screen.dart';
@@ -108,6 +109,28 @@ class _Content extends ConsumerWidget {
             ),
           ],
         ),
+        if (data.spendingInsights.isNotEmpty) ...[
+          const SizedBox(height: Insets.lg),
+          const SectionHeader('Insights'),
+          const SizedBox(height: Insets.xs),
+          ...data.spendingInsights.map((i) => Padding(
+                padding: const EdgeInsets.only(bottom: Insets.xs),
+                child: _InsightCard(insight: i),
+              )),
+        ],
+        if (data.budgetStatuses.any((s) => s.isOver || s.isNearLimit)) ...[
+          const SizedBox(height: Insets.lg),
+          const SectionHeader('Budget alerts'),
+          const SizedBox(height: Insets.xs),
+          ...data.budgetStatuses.where((s) => s.isOver || s.isNearLimit).map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: Insets.xs),
+                child: _BudgetAlertCard(
+                  status: s,
+                  onTap: () => Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => const BudgetsScreen())),
+                ),
+              )),
+        ],
         if (data.pending.isNotEmpty) ...[
           const SizedBox(height: Insets.lg),
           const SectionHeader('Detected from SMS'),
@@ -293,6 +316,77 @@ class _AccountRow extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  final SpendingInsight insight;
+  const _InsightCard({required this.insight});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final (icon, color) = switch (insight.tone) {
+      InsightTone.positive => (Icons.trending_down_rounded, t.success),
+      InsightTone.negative => (Icons.trending_up_rounded, t.warning),
+      InsightTone.neutral => (Icons.lightbulb_rounded, t.info),
+    };
+    return GlassCard(
+      padding: const EdgeInsets.all(Insets.sm),
+      radius: Corners.md,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconBadge(icon: icon, color: color, size: 38),
+          const SizedBox(width: Insets.sm),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(insight.text, style: context.text.bodyMedium),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetAlertCard extends StatelessWidget {
+  final BudgetStatus status;
+  final VoidCallback onTap;
+  const _BudgetAlertCard({required this.status, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = status.isOver ? t.danger : t.warning;
+    return GlassCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(Insets.sm),
+      radius: Corners.md,
+      child: Row(
+        children: [
+          IconBadge(icon: AppIcons.of(status.category.icon), color: color),
+          const SizedBox(width: Insets.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(status.category.name, style: context.text.titleSmall),
+                Text(
+                  status.isOver
+                      ? '${Money.short(status.spent - status.budget.monthlyLimit)} over budget'
+                      : 'Nearing budget limit',
+                  style: context.text.bodySmall?.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+          Text('${Money.short(status.spent)} / ${Money.short(status.budget.monthlyLimit)}',
+              style: context.text.bodySmall?.copyWith(color: t.textMid)),
         ],
       ),
     );

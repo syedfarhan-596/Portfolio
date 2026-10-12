@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -19,6 +20,22 @@ class BackupService {
       subject: 'Pocket Flow backup',
       text: 'Pocket Flow backup — open Pocket Flow on the other phone → Settings → '
           'Backup & restore → Import, and choose this file.',
+    );
+  }
+
+  /// Exports transactions as a plain CSV — for opening in Excel/Sheets, not
+  /// for restoring into the app (use the JSON backup for that).
+  Future<void> exportTransactionsCsv(List<List<String>> rows) async {
+    final csvStr = const ListToCsvConverter().convert(rows);
+    final dir = await getTemporaryDirectory();
+    final stamp = DateTime.now().toIso8601String().split('T').first;
+    final file = File('${dir.path}/pocketflow_transactions_$stamp.csv');
+    await file.writeAsString(csvStr);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/csv')],
+      subject: 'Pocket Flow transactions (CSV)',
+      text: 'Your transactions exported as CSV — open in Excel, Google Sheets, or any '
+          'spreadsheet app.',
     );
   }
 

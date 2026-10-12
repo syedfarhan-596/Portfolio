@@ -74,6 +74,60 @@ class NotificationService {
     await _plugin.cancel(1001);
   }
 
+  /// Schedules a monthly reminder [daysBefore] the given day-of-month, for
+  /// one credit-card account. Repeats automatically every month — no need
+  /// to reschedule after it fires, same as the daily reminder.
+  Future<void> scheduleCardDue(
+    int accountId,
+    String accountName,
+    int dueDay, {
+    int daysBefore = 3,
+  }) async {
+    await init();
+    final id = 3000 + accountId;
+    await _plugin.cancel(id);
+
+    int daysInMonth(int y, int m) => DateTime(y, m + 1, 0).day;
+    final now = tz.TZDateTime.now(tz.local);
+    var year = now.year;
+    var month = now.month;
+    var reminderDay = (dueDay - daysBefore).clamp(1, daysInMonth(year, month));
+    var scheduled = tz.TZDateTime(tz.local, year, month, reminderDay, 10, 0);
+    if (!scheduled.isAfter(now)) {
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+      reminderDay = (dueDay - daysBefore).clamp(1, daysInMonth(year, month));
+      scheduled = tz.TZDateTime(tz.local, year, month, reminderDay, 10, 0);
+    }
+
+    await _plugin.zonedSchedule(
+      id,
+      '$accountName bill due soon',
+      'Due on day $dueDay of this month — pay before then to avoid a late fee.',
+      scheduled,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _reminderChannel,
+          'Daily Reminders',
+          channelDescription: 'Reminds you before a credit card bill is due',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: await _scheduleMode(),
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfMonthAndTime,
+    );
+  }
+
+  Future<void> cancelCardDue(int accountId) async {
+    await init();
+    await _plugin.cancel(3000 + accountId);
+  }
+
   Future<void> showTxnDetected(String title, String body) async {
     await init();
     await _plugin.show(

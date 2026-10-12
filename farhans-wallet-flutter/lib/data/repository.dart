@@ -247,6 +247,63 @@ class Repository {
     );
   }
 
+  /// All learned message-template patterns, most recently seen first — for
+  /// a Settings screen that shows what's trusted/ignored and lets the user
+  /// reset one that learned the wrong thing.
+  Future<List<SmsPattern>> allPatterns() async {
+    final db = await _db;
+    final rows = await db.query('sms_patterns', orderBy: 'lastSeenAt DESC');
+    return rows.map(SmsPattern.fromMap).toList();
+  }
+
+  /// Forgets everything learned about one pattern — it starts over as a
+  /// brand-new, untrusted template next time a matching message arrives.
+  Future<void> resetPattern(int id) async {
+    final db = await _db;
+    await db.delete('sms_patterns', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ───────────────────────── Budgets ─────────────────────────
+  Future<List<Budget>> budgets() async {
+    final db = await _db;
+    final rows = await db.query('budgets');
+    return rows.map(Budget.fromMap).toList();
+  }
+
+  Future<int> upsertBudget(Budget b) async {
+    final db = await _db;
+    if (b.id == null) {
+      return db.insert('budgets', b.toMap()..remove('id'),
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await db.update('budgets', b.toMap(), where: 'id = ?', whereArgs: [b.id]);
+    return b.id!;
+  }
+
+  Future<void> deleteBudget(int id) async {
+    final db = await _db;
+    await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ───────────────────────── Savings goals ─────────────────────────
+  Future<List<SavingsGoal>> savingsGoals() async {
+    final db = await _db;
+    final rows = await db.query('savings_goals', orderBy: 'createdAt DESC');
+    return rows.map(SavingsGoal.fromMap).toList();
+  }
+
+  Future<int> upsertSavingsGoal(SavingsGoal g) async {
+    final db = await _db;
+    if (g.id == null) return db.insert('savings_goals', g.toMap()..remove('id'));
+    await db.update('savings_goals', g.toMap(), where: 'id = ?', whereArgs: [g.id]);
+    return g.id!;
+  }
+
+  Future<void> deleteSavingsGoal(int id) async {
+    final db = await _db;
+    await db.delete('savings_goals', where: 'id = ?', whereArgs: [id]);
+  }
+
   // ───────────────────────── Backup / restore ─────────────────────────
   Future<Map<String, dynamic>> exportAll() async {
     final db = await _db;
@@ -259,6 +316,8 @@ class Repository {
       'transactions': await db.query('transactions'),
       'debts': await db.query('debts'),
       'investments': await db.query('investments'),
+      'budgets': await db.query('budgets'),
+      'savings_goals': await db.query('savings_goals'),
     };
   }
 
@@ -266,10 +325,26 @@ class Repository {
   Future<void> importAll(Map<String, dynamic> data) async {
     final db = await _db;
     await db.transaction((txn) async {
-      for (final t in ['transactions', 'debts', 'investments', 'categories', 'accounts']) {
+      for (final t in [
+        'transactions',
+        'debts',
+        'investments',
+        'categories',
+        'accounts',
+        'budgets',
+        'savings_goals',
+      ]) {
         await txn.delete(t);
       }
-      for (final table in ['accounts', 'categories', 'transactions', 'debts', 'investments']) {
+      for (final table in [
+        'accounts',
+        'categories',
+        'transactions',
+        'debts',
+        'investments',
+        'budgets',
+        'savings_goals',
+      ]) {
         final rows = (data[table] as List?) ?? const [];
         for (final row in rows) {
           await txn.insert(table, Map<String, Object?>.from(row as Map),

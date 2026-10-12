@@ -1,7 +1,7 @@
 name: farhans_wallet
 description: "Farhan's Wallet — premium offline expense, lending & investment tracker."
 publish_to: 'none'
-version: 1.9.0+11
+version: 1.10.0+12
 
 environment:
   sdk: ^3.5.0
@@ -32,6 +32,11 @@ dependencies:
   # Backup / restore (move data to another device)
   share_plus: ^10.1.4
   file_picker: ^8.1.6
+
+  # Security
+  local_auth: ^2.3.0
+  crypto: ^3.0.6
+  csv: ^6.0.0
 
 dev_dependencies:
   flutter_lints: ^5.0.0

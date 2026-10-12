@@ -7,8 +7,11 @@ import '../data/models.dart';
 import '../data/repository.dart';
 import '../services/backup_service.dart';
 import '../services/contacts_service.dart';
+import '../services/insight_generator.dart';
+import '../services/networth_history.dart';
 import '../services/notification_service.dart';
 import '../services/prefs.dart';
+import '../services/recurring_detector.dart';
 import '../services/sms_background.dart';
 import '../services/sms_parser.dart';
 import '../services/sms_service.dart';
@@ -40,6 +43,8 @@ class WalletData {
   final List<Txn> txns; // all
   final List<Debt> debts;
   final List<Investment> investments;
+  final List<Budget> budgets;
+  final List<SavingsGoal> goals;
 
   WalletData({
     required this.accounts,
@@ -47,6 +52,8 @@ class WalletData {
     required this.txns,
     required this.debts,
     required this.investments,
+    required this.budgets,
+    required this.goals,
   });
 
   late final List<Txn> confirmed =
@@ -143,6 +150,66 @@ class WalletData {
 
   double get portfolioGain => investedValue - investedCost;
   double get portfolioGainPct => investedCost > 0 ? portfolioGain / investedCost * 100 : 0;
+
+  late final List<RecurringSeries> recurringSeries = RecurringDetector.detect(confirmed);
+
+  /// Recurring expense spend normalized to a monthly figure — a weekly
+  /// subscription and a yearly one both roll up onto the same footing.
+  double get monthlyRecurringTotal => recurringSeries
+      .where((r) => r.type == TxnType.expense)
+      .fold(0.0, (s, r) => s + r.averageAmount * r.cadence.perMonthFactor);
+
+  /// Each set budget paired with how much has actually been spent in that
+  /// category this calendar month.
+  late final List<BudgetStatus> budgetStatuses = budgets
+      .map((b) {
+        final category = categoryById[b.categoryId];
+        if (category == null) return null;
+        final m = Dates.monthKeyNow();
+        final spent = confirmed
+            .where((t) =>
+                t.type == TxnType.expense &&
+                t.categoryId == b.categoryId &&
+                Dates.monthKey(t.dateTime) == m)
+            .fold(0.0, (s, t) => s + t.amount);
+        return BudgetStatus(budget: b, category: category, spent: spent);
+      })
+      .whereType<BudgetStatus>()
+      .toList();
+
+  /// Net worth at the end of each of the last 6 months (the current month's
+  /// point reflects today, not month-end) — see NetWorthHistory for how past
+  /// points are reconstructed from existing records.
+  late final List<NetWorthPoint> netWorthHistory = NetWorthHistory.monthly(
+    accounts: accounts,
+    confirmedTxns: confirmed,
+    investments: investments,
+    debts: debts,
+  );
+
+  late final List<SpendingInsight> spendingInsights =
+      InsightGenerator.generate(confirmed, categoryById);
+
+  /// Confirmed transactions as CSV rows (header first) — account/category
+  /// ids resolved to their names, for opening in a spreadsheet app.
+  List<List<String>> transactionCsvRows() {
+    final sorted = confirmed.toList()..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    return [
+      ['Date', 'Type', 'Amount', 'Account', 'To account', 'Category', 'Merchant', 'Note', 'Source'],
+      for (final t in sorted)
+        [
+          Dates.dateTime(t.dateTime),
+          t.type.name,
+          t.amount.toStringAsFixed(2),
+          accountById[t.accountId]?.name ?? '',
+          t.toAccountId != null ? (accountById[t.toAccountId]?.name ?? '') : '',
+          t.categoryId != null ? (categoryById[t.categoryId]?.name ?? '') : '',
+          t.merchant,
+          t.note,
+          t.source.name,
+        ],
+    ];
+  }
 }
 
 final walletProvider =
@@ -151,6 +218,7 @@ final walletProvider =
 class WalletNotifier extends AsyncNotifier<WalletData> {
   Repository get _repo => ref.read(repositoryProvider);
   Prefs get _prefs => ref.read(prefsProvider);
+  NotificationService get _notifications => ref.read(notificationProvider);
 
   @override
   Future<WalletData> build() async {
@@ -167,6 +235,8 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
       _repo.transactions(),
       _repo.debts(),
       _repo.investments(),
+      _repo.budgets(),
+      _repo.savingsGoals(),
     ]);
     return WalletData(
       accounts: results[0] as List<Account>,
@@ -174,6 +244,8 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
       txns: results[2] as List<Txn>,
       debts: results[3] as List<Debt>,
       investments: results[4] as List<Investment>,
+      budgets: results[5] as List<Budget>,
+      goals: results[6] as List<SavingsGoal>,
     );
   }
 
@@ -185,12 +257,20 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
 
   // ── Accounts ──
   Future<void> saveAccount(Account a) async {
-    await _repo.upsertAccount(a);
+    final id = await _repo.upsertAccount(a);
+    if (a.type == AccountType.creditCard && a.dueDay != null) {
+      await _notifications.scheduleCardDue(id, a.name, a.dueDay!);
+    } else {
+      await _notifications.cancelCardDue(id);
+    }
     await _refresh();
   }
 
   Future<void> deleteAccount(Account a) async {
-    if (a.id != null) await _repo.deleteAccount(a.id!);
+    if (a.id != null) {
+      await _repo.deleteAccount(a.id!);
+      await _notifications.cancelCardDue(a.id!);
+    }
     await _refresh();
   }
 
@@ -491,6 +571,41 @@ class WalletNotifier extends AsyncNotifier<WalletData> {
 
   Future<void> importData(Map<String, dynamic> data) async {
     await _repo.importAll(data);
+    await _refresh();
+  }
+
+  // ── SMS pattern memory ──
+  Future<List<SmsPattern>> loadPatterns() => _repo.allPatterns();
+  Future<void> resetPattern(int id) => _repo.resetPattern(id);
+
+  // ── Budgets ──
+  Future<void> saveBudget(Budget b) async {
+    await _repo.upsertBudget(b);
+    await _refresh();
+  }
+
+  Future<void> deleteBudget(Budget b) async {
+    if (b.id != null) await _repo.deleteBudget(b.id!);
+    await _refresh();
+  }
+
+  // ── Savings goals ──
+  Future<void> saveGoal(SavingsGoal g) async {
+    await _repo.upsertSavingsGoal(g);
+    await _refresh();
+  }
+
+  Future<void> deleteGoal(SavingsGoal g) async {
+    if (g.id != null) await _repo.deleteSavingsGoal(g.id!);
+    await _refresh();
+  }
+
+  /// Adds (or, with a negative amount, removes) money from a goal's running
+  /// total. Never tied to any account/transaction — purely a motivational
+  /// tracker toward the target.
+  Future<void> contributeToGoal(SavingsGoal g, double delta) async {
+    final newAmount = (g.savedAmount + delta).clamp(0.0, double.infinity);
+    await _repo.upsertSavingsGoal(g.copyWith(savedAmount: newAmount));
     await _refresh();
   }
 }

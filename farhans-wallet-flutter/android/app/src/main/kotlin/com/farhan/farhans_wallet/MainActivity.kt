@@ -1,5 +1,6 @@
 package com.farhan.farhans_wallet
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// local_auth's biometric prompt needs a FragmentActivity on Android.
+class MainActivity : FlutterFragmentActivity()

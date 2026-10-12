@@ -31,6 +31,10 @@ class Account {
   final bool archived;
   final int sortOrder;
 
+  /// Day of month (1-31) the credit-card bill is due, if the user has set
+  /// one. Drives the due-date reminder notification; null means no reminder.
+  final int? dueDay;
+
   const Account({
     this.id,
     required this.name,
@@ -42,6 +46,7 @@ class Account {
     this.includeInTotal = true,
     this.archived = false,
     this.sortOrder = 0,
+    this.dueDay,
   });
 
   Account copyWith({
@@ -55,6 +60,7 @@ class Account {
     bool? includeInTotal,
     bool? archived,
     int? sortOrder,
+    int? dueDay,
   }) =>
       Account(
         id: id ?? this.id,
@@ -67,6 +73,23 @@ class Account {
         includeInTotal: includeInTotal ?? this.includeInTotal,
         archived: archived ?? this.archived,
         sortOrder: sortOrder ?? this.sortOrder,
+        dueDay: dueDay ?? this.dueDay,
+      );
+
+  /// copyWith can't set a nullable field back to null, so use this to clear
+  /// [dueDay] explicitly (e.g. when the account stops being a credit card).
+  Account withDueDay(int? dueDay) => Account(
+        id: id,
+        name: name,
+        type: type,
+        openingBalance: openingBalance,
+        colorHex: colorHex,
+        icon: icon,
+        creditLimit: creditLimit,
+        includeInTotal: includeInTotal,
+        archived: archived,
+        sortOrder: sortOrder,
+        dueDay: dueDay,
       );
 
   Map<String, Object?> toMap() => {
@@ -80,6 +103,7 @@ class Account {
         'includeInTotal': includeInTotal ? 1 : 0,
         'archived': archived ? 1 : 0,
         'sortOrder': sortOrder,
+        'dueDay': dueDay,
       };
 
   factory Account.fromMap(Map<String, Object?> m) => Account(
@@ -93,6 +117,7 @@ class Account {
         includeInTotal: (m['includeInTotal'] as int? ?? 1) == 1,
         archived: (m['archived'] as int? ?? 0) == 1,
         sortOrder: m['sortOrder'] as int? ?? 0,
+        dueDay: m['dueDay'] as int?,
       );
 }
 
@@ -490,6 +515,214 @@ class PeopleSummary {
     required this.dueAfterSalary,
     required this.debts,
   });
+}
+
+enum RecurringCadence { weekly, monthly, yearly }
+
+extension RecurringCadenceX on RecurringCadence {
+  /// Approximate period length, used to project the next expected charge
+  /// and to normalize amounts onto a common monthly footing.
+  int get days => switch (this) {
+        RecurringCadence.weekly => 7,
+        RecurringCadence.monthly => 30,
+        RecurringCadence.yearly => 365,
+      };
+
+  String get label => switch (this) {
+        RecurringCadence.weekly => 'Weekly',
+        RecurringCadence.monthly => 'Monthly',
+        RecurringCadence.yearly => 'Yearly',
+      };
+
+  double get perMonthFactor => switch (this) {
+        RecurringCadence.weekly => 365 / 12 / 7,
+        RecurringCadence.monthly => 1,
+        RecurringCadence.yearly => 1 / 12,
+      };
+}
+
+/// A merchant/account/type combination whose transactions repeat at a
+/// roughly constant interval and amount — detected purely by looking back
+/// over existing confirmed transactions (see RecurringDetector). Not
+/// persisted: it's recomputed from the transaction list on every load, the
+/// same way AccountBalance is.
+class RecurringSeries {
+  final String merchant;
+  final int accountId;
+  final int? categoryId;
+  final TxnType type;
+  final RecurringCadence cadence;
+  final int occurrenceCount;
+  final double averageAmount;
+  final double lastAmount;
+  final int lastDate;
+  final int nextExpectedDate;
+
+  const RecurringSeries({
+    required this.merchant,
+    required this.accountId,
+    required this.categoryId,
+    required this.type,
+    required this.cadence,
+    required this.occurrenceCount,
+    required this.averageAmount,
+    required this.lastAmount,
+    required this.lastDate,
+    required this.nextExpectedDate,
+  });
+
+  /// Three or more consistently-spaced occurrences is a real pattern;
+  /// exactly two is only a hint, shown but flagged as less certain.
+  bool get confident => occurrenceCount >= 3;
+
+  bool get isOverdue =>
+      nextExpectedDate < DateTime.now().millisecondsSinceEpoch - cadence.days * 86400000;
+}
+
+/// A savings target the user is manually putting money toward — tracked as
+/// its own running total, independent of any account balance, so setting a
+/// goal never has to interfere with how real account balances are computed.
+class SavingsGoal {
+  final int? id;
+  final String name;
+  final double targetAmount;
+  final double savedAmount;
+  final int? targetDate;
+  final String colorHex;
+  final String icon;
+  final int createdAt;
+
+  const SavingsGoal({
+    this.id,
+    required this.name,
+    required this.targetAmount,
+    this.savedAmount = 0,
+    this.targetDate,
+    this.colorHex = '#6C5CE7',
+    this.icon = 'savings',
+    required this.createdAt,
+  });
+
+  bool get achieved => savedAmount >= targetAmount;
+  double get pct => targetAmount > 0 ? (savedAmount / targetAmount).clamp(0.0, 1.0).toDouble() : 0.0;
+  double get remaining => (targetAmount - savedAmount).clamp(0, double.infinity);
+
+  SavingsGoal copyWith({
+    int? id,
+    String? name,
+    double? targetAmount,
+    double? savedAmount,
+    int? targetDate,
+    String? colorHex,
+    String? icon,
+    int? createdAt,
+  }) =>
+      SavingsGoal(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        targetAmount: targetAmount ?? this.targetAmount,
+        savedAmount: savedAmount ?? this.savedAmount,
+        targetDate: targetDate ?? this.targetDate,
+        colorHex: colorHex ?? this.colorHex,
+        icon: icon ?? this.icon,
+        createdAt: createdAt ?? this.createdAt,
+      );
+
+  /// copyWith can't set a nullable field back to null, so use this to clear
+  /// [targetDate] explicitly.
+  SavingsGoal withTargetDate(int? targetDate) => SavingsGoal(
+        id: id,
+        name: name,
+        targetAmount: targetAmount,
+        savedAmount: savedAmount,
+        targetDate: targetDate,
+        colorHex: colorHex,
+        icon: icon,
+        createdAt: createdAt,
+      );
+
+  Map<String, Object?> toMap() => {
+        'id': id,
+        'name': name,
+        'targetAmount': targetAmount,
+        'savedAmount': savedAmount,
+        'targetDate': targetDate,
+        'colorHex': colorHex,
+        'icon': icon,
+        'createdAt': createdAt,
+      };
+
+  factory SavingsGoal.fromMap(Map<String, Object?> m) => SavingsGoal(
+        id: m['id'] as int?,
+        name: m['name'] as String,
+        targetAmount: (m['targetAmount'] as num).toDouble(),
+        savedAmount: (m['savedAmount'] as num?)?.toDouble() ?? 0,
+        targetDate: m['targetDate'] as int?,
+        colorHex: m['colorHex'] as String? ?? '#6C5CE7',
+        icon: m['icon'] as String? ?? 'savings',
+        createdAt: m['createdAt'] as int,
+      );
+}
+
+enum InsightTone { positive, negative, neutral }
+
+/// One plain-English observation about spending patterns, generated fresh
+/// from transaction history on every load (see InsightGenerator) — never
+/// stored, since it's always a live read of the current data.
+class SpendingInsight {
+  final InsightTone tone;
+  final String text;
+  const SpendingInsight({required this.tone, required this.text});
+}
+
+/// Net worth as it was (or, for past points, approximately was) at one point
+/// in time — see NetWorthHistory for how past points are reconstructed.
+class NetWorthPoint {
+  final int dateTime;
+  final double netWorth;
+  const NetWorthPoint(this.dateTime, this.netWorth);
+}
+
+/// A user-set monthly spending cap for one expense category.
+class Budget {
+  final int? id;
+  final int categoryId;
+  final double monthlyLimit;
+
+  const Budget({this.id, required this.categoryId, required this.monthlyLimit});
+
+  Budget copyWith({int? id, int? categoryId, double? monthlyLimit}) => Budget(
+        id: id ?? this.id,
+        categoryId: categoryId ?? this.categoryId,
+        monthlyLimit: monthlyLimit ?? this.monthlyLimit,
+      );
+
+  Map<String, Object?> toMap() => {
+        'id': id,
+        'categoryId': categoryId,
+        'monthlyLimit': monthlyLimit,
+      };
+
+  factory Budget.fromMap(Map<String, Object?> m) => Budget(
+        id: m['id'] as int?,
+        categoryId: m['categoryId'] as int,
+        monthlyLimit: (m['monthlyLimit'] as num).toDouble(),
+      );
+}
+
+/// A budget paired with how much has actually been spent in that category
+/// this month. Computed fresh on every load from [Budget] + the month's
+/// confirmed transactions — not persisted itself.
+class BudgetStatus {
+  final Budget budget;
+  final Category category;
+  final double spent;
+  const BudgetStatus({required this.budget, required this.category, required this.spent});
+
+  double get remaining => budget.monthlyLimit - spent;
+  double get pct => budget.monthlyLimit > 0 ? spent / budget.monthlyLimit : 0.0;
+  bool get isOver => spent > budget.monthlyLimit;
+  bool get isNearLimit => !isOver && pct >= 0.8;
 }
 
 /// Learned memory for one SMS "template" (a normalized signature shared by

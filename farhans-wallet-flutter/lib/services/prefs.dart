@@ -33,4 +33,30 @@ class Prefs {
   /// 0 = system, 1 = light, 2 = dark
   int get themeMode => _sp.getInt('theme_mode') ?? 2;
   set themeMode(int v) => _sp.setInt('theme_mode', v);
+
+  // ── App lock ──
+  bool get appLockEnabled => _sp.getBool('app_lock_enabled') ?? false;
+  set appLockEnabled(bool v) => _sp.setBool('app_lock_enabled', v);
+
+  /// SHA-256 of (salt + PIN), never the PIN itself.
+  String? get pinHash => _sp.getString('pin_hash');
+  set pinHash(String? v) {
+    if (v == null) {
+      _sp.remove('pin_hash');
+    } else {
+      _sp.setString('pin_hash', v);
+    }
+  }
+
+  String? get pinSalt => _sp.getString('pin_salt');
+  set pinSalt(String? v) {
+    if (v == null) {
+      _sp.remove('pin_salt');
+    } else {
+      _sp.setString('pin_salt', v);
+    }
+  }
+
+  bool get biometricEnabled => _sp.getBool('biometric_enabled') ?? false;
+  set biometricEnabled(bool v) => _sp.setBool('biometric_enabled', v);
 }

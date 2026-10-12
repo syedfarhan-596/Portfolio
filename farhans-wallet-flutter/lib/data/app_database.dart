@@ -31,7 +31,7 @@ class AppDatabase {
     final path = p.join(dir, 'farhans_wallet.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 6,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, v) async {
         await _createSchema(db);
@@ -53,6 +53,15 @@ class AppDatabase {
         if (oldV < 3) {
           await db.execute(_smsPatternsSchema);
         }
+        if (oldV < 4) {
+          await db.execute('ALTER TABLE accounts ADD COLUMN dueDay INTEGER');
+        }
+        if (oldV < 5) {
+          await db.execute(_budgetsSchema);
+        }
+        if (oldV < 6) {
+          await db.execute(_savingsGoalsSchema);
+        }
       },
     );
   }
@@ -69,7 +78,8 @@ class AppDatabase {
         creditLimit REAL,
         includeInTotal INTEGER NOT NULL DEFAULT 1,
         archived INTEGER NOT NULL DEFAULT 0,
-        sortOrder INTEGER NOT NULL DEFAULT 0
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        dueDay INTEGER
       )''');
     await db.execute('''
       CREATE TABLE categories(
@@ -132,7 +142,32 @@ class AppDatabase {
         sold INTEGER NOT NULL DEFAULT 0
       )''');
     await db.execute(_smsPatternsSchema);
+    await db.execute(_budgetsSchema);
+    await db.execute(_savingsGoalsSchema);
   }
+
+  /// Manually-tracked savings goals — independent of account balances.
+  static const String _savingsGoalsSchema = '''
+    CREATE TABLE IF NOT EXISTS savings_goals(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      targetAmount REAL NOT NULL,
+      savedAmount REAL NOT NULL DEFAULT 0,
+      targetDate INTEGER,
+      colorHex TEXT NOT NULL,
+      icon TEXT NOT NULL,
+      createdAt INTEGER NOT NULL
+    )
+  ''';
+
+  /// One monthly spending cap per expense category.
+  static const String _budgetsSchema = '''
+    CREATE TABLE IF NOT EXISTS budgets(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      categoryId INTEGER NOT NULL UNIQUE,
+      monthlyLimit REAL NOT NULL
+    )
+  ''';
 
   /// Per-template memory for SMS capture: groups messages by a normalized
   /// signature (amount/date/reference digits blanked out) so the app can
