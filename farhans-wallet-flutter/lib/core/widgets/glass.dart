@@ -47,16 +47,9 @@ LinearGradient glassSheen(AppTokens t, {bool strong = false}) => LinearGradient(
       colors: [t.glassHighlight, strong ? t.glassFillStrong : t.glassFill],
     );
 
-/// A crisp, subtle inner highlight along the top edge — cheap stand-in for
-/// the specular catch a real glass edge would show, so a surface reads as
-/// an actual pane rather than a flat tinted rectangle.
-const List<BoxShadow> glassInnerEdge = [
-  BoxShadow(color: Color(0x26FFFFFF), blurRadius: 1, offset: Offset(0, 1), inset: true),
-];
-
 /// A translucent surface: no backdrop blur (blur is expensive to composite
 /// and was causing jank on lower-end devices) — just a gradient fill,
-/// hairline border, inner top highlight, and a soft drop shadow for depth.
+/// hairline border, and a soft drop shadow for depth.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -88,7 +81,6 @@ class GlassCard extends StatelessWidget {
         gradient: gradient ?? glassSheen(t, strong: strong),
         borderRadius: BorderRadius.circular(radius),
         border: border ?? Border.all(color: t.glassBorder, width: 1),
-        boxShadow: glassInnerEdge,
       ),
       child: child,
     );

@@ -397,7 +397,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               gradient: glassSheen(t),
               borderRadius: BorderRadius.circular(Corners.sm),
               border: Border.all(color: t.glassBorder),
-              boxShadow: glassInnerEdge,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
