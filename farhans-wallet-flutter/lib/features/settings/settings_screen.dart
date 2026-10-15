@@ -394,9 +394,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(Insets.sm),
             decoration: BoxDecoration(
-              color: t.glassFill,
+              gradient: glassSheen(t),
               borderRadius: BorderRadius.circular(Corners.sm),
               border: Border.all(color: t.glassBorder),
+              boxShadow: glassInnerEdge,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

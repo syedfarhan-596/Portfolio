@@ -147,10 +147,10 @@ class _GlassNavBar extends StatelessWidget {
       child: Container(
         height: 66,
         decoration: BoxDecoration(
-          color: t.glassFillStrong,
+          gradient: glassSheen(t, strong: true),
           borderRadius: BorderRadius.circular(Corners.xl),
           border: Border.all(color: t.glassBorder),
-          boxShadow: t.softShadow,
+          boxShadow: [...t.softShadow, ...glassInnerEdge],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,

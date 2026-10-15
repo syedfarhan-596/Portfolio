@@ -107,18 +107,22 @@ class AppTokens extends ThemeExtension<AppTokens> {
       );
 
   static const AppTokens dark = AppTokens(
-    bgTop: Color(0xFF0B0B14),
-    bgBottom: Color(0xFF101019),
-    blobA: Color(0xFF6C5CE7),
-    blobB: Color(0xFF1FB6A6),
-    blobC: Color(0xFFE0568B),
-    // Translucent again: AppBackground now blurs the ambient gradient once,
-    // globally, instead of each surface blurring it individually, so these
-    // can be glass-like without the per-card blur cost that caused jank.
-    glassFill: Color(0x59FFFFFF),
-    glassFillStrong: Color(0x73FFFFFF),
-    glassBorder: Color(0x26FFFFFF),
-    glassHighlight: Color(0x33FFFFFF),
+    bgTop: Color(0xFF0C0A18),
+    bgBottom: Color(0xFF18142C),
+    blobA: Color(0xFF7C6AFF),
+    blobB: Color(0xFF22D6C0),
+    blobC: Color(0xFFFF6FA8),
+    // Translucent, and tinted toward the accent's cool violet rather than
+    // flat white — a pure-white overlay on a dark backdrop just desaturates
+    // into dead gray, which is what this looked like before. Ordered so a
+    // gradient from glassHighlight down to glassFill/glassFillStrong always
+    // goes bright -> base, giving cards a visible diagonal sheen instead of
+    // a flat slab (see GlassCard.sheen) — glassHighlight is the brightest,
+    // glassFillStrong next, glassFill the dimmest base tone.
+    glassFill: Color(0x40C9C3FF),
+    glassFillStrong: Color(0x66C9C3FF),
+    glassBorder: Color(0x4DDAD6FF),
+    glassHighlight: Color(0x73FFFFFF),
     textHigh: Color(0xFFF3F3FA),
     textMid: Color(0xFFAEAEC6),
     textLow: Color(0xFF73738C),
@@ -129,10 +133,10 @@ class AppTokens extends ThemeExtension<AppTokens> {
     danger: Color(0xFFFF6B6B),
     info: Color(0xFF5AA9FF),
     softShadow: [
-      BoxShadow(color: Color(0x40000000), blurRadius: 24, offset: Offset(0, 12)),
+      BoxShadow(color: Color(0x4D14102A), blurRadius: 24, offset: Offset(0, 12)),
     ],
     liftedShadow: [
-      BoxShadow(color: Color(0x59000000), blurRadius: 40, offset: Offset(0, 20)),
+      BoxShadow(color: Color(0x6614102A), blurRadius: 40, offset: Offset(0, 20)),
     ],
   );
 
@@ -143,11 +147,13 @@ class AppTokens extends ThemeExtension<AppTokens> {
     blobB: Color(0xFF5BD6C2),
     blobC: Color(0xFFFF9BC0),
     // Same reasoning as the dark palette above — translucent over the
-    // shared blur layer, not an opaque surface.
+    // shared blur layer, not an opaque surface. glassHighlight brightest,
+    // glassFillStrong next, glassFill the dimmest, so the same bright-to-base
+    // sheen gradient direction works in both themes.
     glassFill: Color(0xB3FFFFFF),
     glassFillStrong: Color(0xD1FFFFFF),
-    glassBorder: Color(0x33FFFFFF),
-    glassHighlight: Color(0x80FFFFFF),
+    glassBorder: Color(0x40FFFFFF),
+    glassHighlight: Color(0xF2FFFFFF),
     textHigh: Color(0xFF16161F),
     textMid: Color(0xFF5A5A6E),
     textLow: Color(0xFF8E8EA3),

@@ -17,9 +17,10 @@ Future<T?> showGlassSheet<T>(BuildContext context, Widget child) {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: t.glassFillStrong,
+            gradient: glassSheen(t, strong: true),
             border: Border(top: BorderSide(color: t.glassBorder)),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(Corners.xl)),
+            boxShadow: glassInnerEdge,
           ),
           padding: EdgeInsets.only(
             left: Insets.lg,
