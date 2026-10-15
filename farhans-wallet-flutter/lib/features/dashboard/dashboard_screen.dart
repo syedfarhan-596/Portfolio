@@ -40,6 +40,7 @@ class _Content extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
     final recent = data.confirmed.take(6).toList();
+    final name = ref.read(prefsProvider).userName;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(Insets.lg, Insets.md, Insets.lg, 120),
@@ -50,7 +51,8 @@ class _Content extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Hello, Farhan 👋', style: context.text.bodyMedium?.copyWith(color: t.textMid)),
+                  Text(name.isEmpty ? 'Hello there 👋' : 'Hello, $name 👋',
+                      style: context.text.bodyMedium?.copyWith(color: t.textMid)),
                   const SizedBox(height: 2),
                   Text('Your money', style: context.text.headlineMedium),
                 ],

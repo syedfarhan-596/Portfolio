@@ -59,4 +59,15 @@ class Prefs {
 
   bool get biometricEnabled => _sp.getBool('biometric_enabled') ?? false;
   set biometricEnabled(bool v) => _sp.setBool('biometric_enabled', v);
+
+  // ── Onboarding ──
+  String get userName => _sp.getString('user_name') ?? '';
+  set userName(String v) => _sp.setString('user_name', v);
+
+  /// Null means this key has never been set — used once at startup to tell
+  /// a genuinely fresh install (show onboarding) apart from an existing
+  /// install upgrading to the version that introduced onboarding (don't).
+  bool? get onboardingCompleteRaw => _sp.getBool('onboarding_complete');
+  bool get onboardingComplete => onboardingCompleteRaw ?? false;
+  set onboardingComplete(bool v) => _sp.setBool('onboarding_complete', v);
 }

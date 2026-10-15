@@ -190,17 +190,14 @@ class AppDatabase {
     )
   ''';
 
+  /// A fresh install starts with just a generic Cash account — enough that
+  /// the app isn't completely empty, without assuming which banks or cards
+  /// a given user actually has. Onboarding's accounts step is where they add
+  /// their real ones.
   Future<void> _seed(Database db) async {
-    final accounts = <Account>[
-      const Account(name: 'Bank 1', type: AccountType.bank, colorHex: '#0984E3', icon: 'account_balance', sortOrder: 0),
-      const Account(name: 'Bank 2', type: AccountType.bank, colorHex: '#00B894', icon: 'account_balance', sortOrder: 1),
-      const Account(name: 'Bank 3', type: AccountType.bank, colorHex: '#6C5CE7', icon: 'account_balance', sortOrder: 2),
-      const Account(name: 'Cash', type: AccountType.cash, colorHex: '#FDCB6E', icon: 'payments', sortOrder: 3),
-      const Account(name: 'SBI PhonePe Credit Card', type: AccountType.creditCard, colorHex: '#E17055', icon: 'credit_card', includeInTotal: false, sortOrder: 4),
-    ];
-    for (final a in accounts) {
-      await db.insert('accounts', a.toMap()..remove('id'));
-    }
+    const cash = Account(
+        name: 'Cash', type: AccountType.cash, colorHex: '#FDCB6E', icon: 'payments', sortOrder: 0);
+    await db.insert('accounts', cash.toMap()..remove('id'));
     for (final c in defaultCategories) {
       await db.insert('categories', c.toMap()..remove('id'));
     }

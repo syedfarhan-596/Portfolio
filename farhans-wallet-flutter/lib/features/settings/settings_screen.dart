@@ -8,6 +8,7 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/detail_scaffold.dart';
 import '../../core/widgets/fields.dart';
 import '../../core/widgets/glass.dart';
+import '../../services/prefs.dart';
 import '../../state/wallet_state.dart';
 import '../budgets/budgets_screen.dart';
 import '../goals/savings_goals_screen.dart';
@@ -46,6 +47,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(Insets.lg, Insets.xs, Insets.lg, Insets.xl),
         children: [
+          _profileCard(context, prefs),
+          const SizedBox(height: Insets.sm),
           // App lock
           GlassCard(
             child: Column(
@@ -326,6 +329,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _profileCard(BuildContext context, Prefs prefs) {
+    final t = context.tokens;
+    final name = prefs.userName;
+    return GlassCard(
+      onTap: () => _editName(context, prefs),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: t.accentA.withValues(alpha: 0.2),
+            child: Text(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              style: TextStyle(color: t.accentA, fontWeight: FontWeight.w800, fontSize: 20),
+            ),
+          ),
+          const SizedBox(width: Insets.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name.isEmpty ? 'Add your name' : name, style: context.text.titleSmall),
+                Text('Shown as your greeting on Home',
+                    style: context.text.bodySmall?.copyWith(color: t.textMid)),
+              ],
+            ),
+          ),
+          Icon(Icons.edit_rounded, color: t.textMid, size: 20),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editName(BuildContext context, Prefs prefs) async {
+    final controller = TextEditingController(text: prefs.userName);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.tokens.bgBottom,
+        title: const Text('Your name'),
+        content: TextField(controller: controller, autofocus: true),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name != null) setState(() => prefs.userName = name);
   }
 
   Widget _backupCard(BuildContext context) {

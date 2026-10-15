@@ -23,6 +23,17 @@ Future<void> main() async {
     prefs.lastSmsScan = DateTime.now().millisecondsSinceEpoch;
   }
 
+  // 'onboarding_complete' didn't exist before onboarding was introduced, so
+  // on an existing install upgrading to this version it reads as unset. Tell
+  // that apart from a genuinely fresh install by checking for real data —
+  // only a fresh install with zero transactions should see onboarding.
+  if (prefs.onboardingCompleteRaw == null) {
+    final db = await AppDatabase.instance.database;
+    final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM transactions');
+    final hasExistingData = (rows.first['c'] as int) > 0;
+    prefs.onboardingComplete = hasExistingData;
+  }
+
   final notifications = NotificationService();
   await notifications.init();
   if (prefs.reminderEnabled) {
